@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Sales Manager</title>
+<style>
+:root {
+  --bg:#0F0F0F;--surface:#1A1A1A;--surface2:#242424;--surface3:#2E2E2E;
+  --border:#333;--border2:#444;
+  --primary:#4F8EF7;--primary-dim:rgba(79,142,247,.15);
+  --green:#34C759;--yellow:#FF9F0A;--red:#FF3B30;--blue:#0A84FF;
+  --flame:#FF6B35;--ember:#FF9500;
+  --text:#F2F2F7;--text2:#AEAEB2;--text3:#636366;
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+  --font:-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif;--touch:48px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;overflow-x:hidden}
+.app{display:flex;flex-direction:column;min-height:100vh;max-width:900px;margin:0 auto}
+
+/* HEADER */
+.app-header{position:sticky;top:0;z-index:100;background:rgba(15,15,15,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.app-logo{display:flex;align-items:center;gap:10px}
+.app-logo .icon{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),#7B5BF7);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.app-logo .name{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.app-logo .sub{font-size:11px;color:var(--text3);margin-top:1px}
+.sync-status{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.sync-dot.syncing{background:var(--yellow);animation:pulse 1s infinite}
+.sync-dot.error{background:var(--red)}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(15,15,15,.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--border);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px;min-height:var(--touch);cursor:pointer;border:none;background:none;color:var(--text3);font-family:var(--font);font-size:10px;font-weight:500;transition:color .15s;-webkit-user-select:none;user-select:none}
+.nav-item .nav-icon{font-size:22px;line-height:1}
+.nav-item.active{color:var(--primary)}
+
+/* CONTENT */
+.content{flex:1;padding:16px 16px calc(80px + env(safe-area-inset-bottom))}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px}
+.card-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:var(--surface3);color:var(--text2)}
+.card-body{padding:14px 16px}
+
+/* TYPOGRAPHY */
+.page-title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:16px}
+.section-label{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+
+/* FORM */
+.field{margin-bottom:14px}.field:last-child{margin-bottom:0}
+.field-label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.field-label .req{color:var(--primary);margin-left:2px}
+.field-hint{font-size:11px;color:var(--text3);margin-top:4px}
+.input,.select{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:16px;padding:12px 14px;outline:none;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none;min-height:var(--touch)}
+.input:focus,.select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,142,247,.15)}
+.input::placeholder{color:var(--text3)}
+.select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23636366' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:40px}
+.select option{background:var(--surface2)}
+.input-row{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.input-num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.input-ro{background:var(--surface3)!important;color:var(--primary);font-weight:700}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;border-radius:var(--radius-sm);border:none;font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s;min-height:var(--touch);-webkit-user-select:none;user-select:none}
+.btn:active{opacity:.8;transform:scale(.97)}
+.btn:disabled{opacity:.4;pointer-events:none}
+.btn-primary{background:linear-gradient(135deg,var(--primary),#7B5BF7);color:#fff;width:100%}
+.btn-secondary{background:var(--surface2);border:1.5px solid var(--border2);color:var(--text);width:100%}
+.btn-ghost{background:none;color:var(--primary);padding:8px 12px;font-size:14px;min-height:36px}
+.btn-danger{background:rgba(255,59,48,.15);border:1.5px solid rgba(255,59,48,.3);color:var(--red);padding:8px 14px;font-size:13px;min-height:36px}
+.btn-sm{padding:8px 14px;font-size:13px;min-height:36px}
+.btn-icon{width:36px;height:36px;padding:0;border-radius:50%;font-size:16px;min-height:36px}
+
+/* LIST */
+.list-item{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;-webkit-user-select:none;user-select:none}
+.list-item:last-child{border-bottom:none}
+.list-item:active{background:var(--surface2)}
+.list-item-main{flex:1;min-width:0}
+.list-item-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-item-sub{font-size:12px;color:var(--text2);margin-top:2px}
+.list-item-right{text-align:right;flex-shrink:0}
+.list-item-value{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.list-item-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* SEGMENT */
+.segment{display:flex;background:var(--surface2);border-radius:var(--radius-sm);padding:3px;gap:2px;margin-bottom:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.segment::-webkit-scrollbar{display:none}
+.seg-btn{flex:1;min-width:max-content;padding:8px 12px;border:none;background:none;color:var(--text3);font-family:var(--font);font-size:13px;font-weight:600;border-radius:var(--radius-xs);cursor:pointer;transition:all .15s;white-space:nowrap;min-height:36px}
+.seg-btn.active{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(79,142,247,.3)}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(72px + env(safe-area-inset-bottom) + 12px);right:16px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--primary),#7B5BF7);border:none;color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 20px rgba(79,142,247,.4);z-index:90;transition:transform .15s}
+.fab:active{transform:scale(.93)}
+.fab.hidden{display:none}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:flex-end}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-height:92vh;display:flex;flex-direction:column;animation:slideUp .25s ease-out}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:10px auto 4px;flex-shrink:0}
+.modal-header{padding:8px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-title{font-size:17px;font-weight:700}
+.modal-body{padding:16px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.modal-footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.kpi-label{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.06em;margin-bottom:6px}
+.kpi-value{font-size:26px;font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.kpi-safe{color:var(--green)}.kpi-warn{color:var(--yellow)}.kpi-danger{color:var(--red)}.kpi-blue{color:var(--primary)}
+
+/* PROGRESS BAR */
+.progress-bar{height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.fill-safe{background:var(--green)}.fill-warn{background:var(--yellow)}.fill-danger{background:var(--red)}.fill-blue{background:var(--primary)}
+
+/* PL TABLE */
+.pl-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.pl-row:last-child{border-bottom:none}
+.pl-row.pl-subtotal{border-top:2px solid var(--border2);border-bottom:2px solid var(--border2);margin:4px 0;padding:12px 0}
+.pl-row.pl-total{border-top:2px solid var(--primary);padding:14px 0}
+.pl-label{font-size:14px;color:var(--text2)}
+.pl-label.pl-indent{padding-left:14px;font-size:13px;color:var(--text3)}
+.pl-value{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.pl-rate{font-size:12px;color:var(--text3);margin-top:2px;text-align:right}
+.pl-subtotal .pl-label{font-size:15px;font-weight:700;color:var(--text)}
+.pl-subtotal .pl-value{font-size:17px}
+.pl-total .pl-label{font-size:16px;font-weight:800;color:var(--text)}
+.pl-total .pl-value{font-size:20px}
+.v-safe{color:var(--green)}.v-warn{color:var(--yellow)}.v-danger{color:var(--red)}.v-blue{color:var(--primary)}
+
+/* STAFF ROW */
+.staff-row-card{background:var(--surface2);border-radius:var(--radius-sm);padding:10px;margin-bottom:8px;border:1px solid var(--border)}
+.staff-row-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+
+/* TOGGLE */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
+.toggle-label{font-size:14px;font-weight:600}
+.toggle-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.toggle{position:relative;width:50px;height:28px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--surface3);border-radius:14px;transition:.3s}
+.toggle-slider:before{content:'';position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.toggle-slider{background:var(--primary)}
+.toggle input:checked+.toggle-slider:before{transform:translateX(22px)}
+
+/* MISC */
+.divider{height:1px;background:var(--border);margin:14px 0}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .ei{font-size:48px;margin-bottom:12px}
+.empty-state .et{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text2)}
+.empty-state .es{font-size:13px}
+.summary-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.summary-row:last-child{border-bottom:none}
+.summary-label{font-size:14px;color:var(--text2)}
+.summary-value{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.sv-safe{color:var(--green)}.sv-warn{color:var(--yellow)}.sv-danger{color:var(--red)}.sv-blue{color:var(--primary)}
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);color:var(--text);font-size:14px;font-weight:600;padding:10px 20px;border-radius:24px;z-index:500;opacity:0;transition:opacity .2s;white-space:nowrap;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.toast.show{opacity:1}
+.loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.loading-overlay.hidden{display:none}
+.spinner{width:44px;height:44px;border:3px solid var(--border2);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--text2)}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);gap:12px}
+.setting-row:last-child{border-bottom:none}
+.setting-label{font-size:15px;font-weight:600}
+.setting-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.setting-value{font-size:15px;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums}
+.month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:8px}
+.month-nav .month-label{font-size:18px;font-weight:800;letter-spacing:-.3px}
+.month-btn{background:var(--surface2);border:1.5px solid var(--border2);color:var(--text);border-radius:var(--radius-sm);padding:8px 14px;font-size:15px;font-weight:600;cursor:pointer;min-height:40px}
+.month-btn:active{opacity:.7}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:var(--surface3);color:var(--text2)}
+.chip-green{background:rgba(52,199,89,.15);color:var(--green)}
+.chip-yellow{background:rgba(255,159,10,.15);color:var(--yellow)}
+.chip-red{background:rgba(255,59,48,.15);color:var(--red)}
+.chip-blue{background:rgba(79,142,247,.15);color:var(--primary)}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@media(min-width:600px){.content{padding:20px 20px calc(80px + env(safe-area-inset-bottom))}.kpi-grid{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:768px){html{font-size:17px}.content{padding:24px 24px 100px}.modal{max-width:560px;margin:auto;border-radius:20px}.modal-overlay{align-items:center}}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loading"><div class="spinner"></div><div class="loading-text">データを読み込んでいます…</div></div>
+
+<div class="app-header">
+  <div class="app-logo">
+    <div class="icon">📊</div>
+    <div><div class="name">Sales Manager</div><div class="sub" id="store-name">日次PL管理</div></div>
+  </div>
+  <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">同期済み</span></div>
+</div>
+
+<div class="content">
+
+  <!-- ===== DASHBOARD ===== -->
+  <div id="tab-dash" class="tab-panel active">
+    <div class="month-nav">
+      <button class="month-btn" onclick="shiftDashMonth(-1)">‹</button>
+      <div class="month-label" id="dash-month-label">— 年 — 月</div>
+      <button class="month-btn" onclick="shiftDashMonth(1)">›</button>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">売上合計</div><div class="kpi-value kpi-blue" id="kpi-sales">—</div><div class="kpi-sub" id="kpi-sales-days">— 日分</div></div>
+      <div class="kpi-card"><div class="kpi-label">粗利率</div><div class="kpi-value" id="kpi-gross-rate">—</div><div class="kpi-sub">原価率 <span id="kpi-cost-rate-sub">—</span></div></div>
+      <div class="kpi-card"><div class="kpi-label">FL比率</div><div class="kpi-value" id="kpi-fl">—</div><div class="kpi-sub">目標 <span id="kpi-fl-target">60%</span>以内</div></div>
+      <div class="kpi-card"><div class="kpi-label">営業利益</div><div class="kpi-value" id="kpi-profit">—</div><div class="kpi-sub" id="kpi-profit-rate">利益率 —</div></div>
+    </div>
+
+    <!-- 月次PL -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📋 月次PL</div><span class="badge" id="dash-pl-badge">累計</span></div>
+      <div class="card-body" id="dash-pl-body">
+        <div class="pl-row"><span class="pl-label">売上高</span><div><div class="pl-value v-blue" id="pl-sales">—</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">仕入原価</span><div><div class="pl-value" id="pl-cost">—</div><div class="pl-rate" id="pl-cost-rate">— %</div></div></div>
+        <div class="pl-row pl-subtotal"><span class="pl-label">粗利益</span><div><div class="pl-value" id="pl-gross">—</div><div class="pl-rate" id="pl-gross-rate">— %</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">人件費</span><div><div class="pl-value" id="pl-labor">—</div><div class="pl-rate" id="pl-labor-rate">— %</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">変動販管費</span><div><div class="pl-value" id="pl-varexp">—</div><div class="pl-rate" id="pl-varexp-rate">— %</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">固定費</span><div><div class="pl-value" id="pl-fixed">—</div><div class="pl-rate" id="pl-fixed-rate">— %</div></div></div>
+        <div class="pl-row pl-total"><span class="pl-label">営業利益</span><div><div class="pl-value" id="pl-profit">—</div><div class="pl-rate" id="pl-profit-rate">— %</div></div></div>
+      </div>
+    </div>
+
+    <!-- 損益分岐点 -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📉 損益分岐点</div></div>
+      <div class="card-body">
+        <div class="summary-row"><span class="summary-label">固定費合計</span><span class="summary-value" id="bep-fixed">—</span></div>
+        <div class="summary-row"><span class="summary-label">変動費率（原価＋変動販管）</span><span class="summary-value" id="bep-var-rate">—</span></div>
+        <div class="summary-row"><span class="summary-label">損益分岐点売上</span><span class="summary-value sv-blue" id="bep-sales">—</span></div>
+        <div class="summary-row"><span class="summary-label">今月の達成率</span><span class="summary-value" id="bep-achieve">—</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="bep-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- 直近7日 -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📅 直近の日次実績</div><button class="btn btn-ghost btn-sm" onclick="switchTab('daily',document.querySelectorAll('.nav-item')[1])">日次入力→</button></div>
+      <div id="dash-daily-list"></div>
+    </div>
+  </div>
+
+  <!-- ===== 日次入力 ===== -->
+  <div id="tab-daily" class="tab-panel">
+    <div class="page-title">📅 日次入力</div>
+    <div class="page-sub">売上・原価・人件費を入力</div>
+
+    <!-- 日付選択 -->
+    <div class="card card-body" style="padding:14px 16px;margin-bottom:12px">
+      <div class="field" style="margin-bottom:0">
+        <label class="field-label">対象日</label>
+        <input class="input" id="daily-date" type="date" onchange="loadDailyData()">
+      </div>
+    </div>
+
+    <!-- 売上・原価 -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">💴 売上・原価</div></div>
+      <div class="card-body">
+        <div class="field">
+          <label class="field-label">売上（税抜）<span class="req">*</span></label>
+          <input class="input input-num" id="d-sales" type="number" inputmode="numeric" placeholder="0" oninput="recalcDaily()">
+        </div>
+        <div class="field">
+          <label class="field-label">仕入原価（当日実績）</label>
+          <input class="input input-num" id="d-cost" type="number" inputmode="numeric" placeholder="0" oninput="recalcDaily()">
+          <div class="field-hint">仕入れた金額をそのまま入力</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 人件費 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">👥 人件費</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text3)">スタッフ別</span>
+          <label class="toggle"><input type="checkbox" id="labor-mode-toggle" onchange="toggleLaborMode()"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <!-- 合計入力モード（デフォルト） -->
+      <div class="card-body" id="labor-simple-mode">
+        <div class="field" style="margin-bottom:0">
+          <label class="field-label">人件費合計（当日）</label>
+          <input class="input input-num" id="d-labor-total" type="number" inputmode="numeric" placeholder="0" oninput="recalcDaily()">
+          <div class="field-hint">シフト集計後の合計金額を入力</div>
+        </div>
+      </div>
+      <!-- スタッフ別入力モード -->
+      <div class="card-body" id="labor-detail-mode" style="display:none">
+        <div id="staff-time-rows"></div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:var(--text2)">人件費合計</span>
+          <span style="font-size:18px;font-weight:800;color:var(--primary)" id="labor-detail-total">¥0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 変動販管費 -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📦 変動販管費</div><span style="font-size:11px;color:var(--text3)">消耗品など</span></div>
+      <div class="card-body">
+        <div class="field">
+          <label class="field-label">変動費合計（当日）</label>
+          <input class="input input-num" id="d-varexp" type="number" inputmode="numeric" placeholder="0" oninput="recalcDaily()">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label class="field-label">メモ</label>
+          <input class="input" id="d-varexp-memo" type="text" placeholder="例：消耗品、クリーニング代など">
+        </div>
+      </div>
+    </div>
+
+    <!-- 当日PL -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📋 当日PL（プレビュー）</div></div>
+      <div class="card-body">
+        <div class="pl-row"><span class="pl-label">売上高</span><div><div class="pl-value v-blue" id="dp-sales">—</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">仕入原価</span><div><div class="pl-value" id="dp-cost">—</div><div class="pl-rate" id="dp-cost-rate">— %</div></div></div>
+        <div class="pl-row pl-subtotal"><span class="pl-label">粗利益</span><div><div class="pl-value" id="dp-gross">—</div><div class="pl-rate" id="dp-gross-rate">— %</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">人件費</span><div><div class="pl-value" id="dp-labor">—</div><div class="pl-rate" id="dp-labor-rate">— %</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">変動販管費</span><div><div class="pl-value" id="dp-varexp">—</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">固定費（日割）</span><div><div class="pl-value" id="dp-fixed">—</div><div class="pl-rate" id="dp-fixed-hint" style="font-size:11px;color:var(--text3)"></div></div></div>
+        <div class="pl-row pl-total"><span class="pl-label">営業利益</span><div><div class="pl-value" id="dp-profit">—</div><div class="pl-rate" id="dp-profit-rate">— %</div></div></div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
+          <span style="font-size:13px;color:var(--text2)">FL比率</span>
+          <span style="font-size:17px;font-weight:800" id="dp-fl">—</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="daily-save-btn" onclick="saveDaily()">この日を保存</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-danger btn-sm" id="daily-del-btn" onclick="deleteDaily()" style="display:none;width:100%">この日のデータを削除</button>
+    <div style="height:12px"></div>
+  </div>
+
+  <!-- ===== スタッフ ===== -->
+  <div id="tab-staff" class="tab-panel">
+    <div class="page-title">👥 スタッフ</div>
+    <div class="page-sub">時給・月給を登録</div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">スタッフ一覧 <span class="badge" id="staff-count">0名</span></div></div>
+      <div id="staff-list"></div>
+    </div>
+  </div>
+
+  <!-- ===== 販管費（固定費） ===== -->
+  <div id="tab-exp" class="tab-panel">
+    <div class="page-title">💰 固定費マスタ</div>
+    <div class="page-sub">毎月かかる固定費を登録</div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">固定費一覧 <span class="badge" id="exp-count">0件</span></div>
+        <div class="summary-value sv-blue" id="exp-total" style="font-size:15px">¥—</div>
+      </div>
+      <div id="exp-list"></div>
+    </div>
+  </div>
+
+  <!-- ===== 月次 ===== -->
+  <div id="tab-monthly" class="tab-panel">
+    <div class="page-title">📊 月次サマリー</div>
+    <div class="page-sub">月ごとのPL推移</div>
+    <div id="monthly-list"></div>
+  </div>
+
+  <!-- ===== 設定 ===== -->
+  <div id="tab-settings" class="tab-panel">
+    <div class="page-title">⚙ 設定</div>
+    <div class="page-sub">店舗情報・目標値</div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">店舗情報</div></div>
+      <div class="card-body">
+        <div class="field" style="margin-bottom:0"><label class="field-label">店舗名</label><input class="input" id="cfg-store" type="text" placeholder="例：〇〇焼肉店"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">目標値</div></div>
+      <div class="card-body">
+        <div class="input-row">
+          <div class="field"><label class="field-label">目標原価率（%）</label><input class="input input-num" id="cfg-cost-rate" type="number" inputmode="numeric" placeholder="30"></div>
+          <div class="field"><label class="field-label">目標FL比率（%）</label><input class="input input-num" id="cfg-fl-rate" type="number" inputmode="numeric" placeholder="60"></div>
+        </div>
+        <div class="field" style="margin-bottom:0"><label class="field-label">目標営業利益率（%）</label><input class="input input-num" id="cfg-profit-rate" type="number" inputmode="numeric" placeholder="15"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">月次集計</div></div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">当月の日次データから月次サマリーを手動で再集計します。</p>
+        <button class="btn btn-secondary" onclick="aggregateManual()">🔄 当月を再集計する</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveSettings()">設定を保存</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-secondary" onclick="loadAll()">🔄 データを再読み込み</button>
+  </div>
+
+</div><!-- /content -->
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="switchTab('dash',this)"><span class="nav-icon">🏠</span>ホーム</button>
+  <button class="nav-item" onclick="switchTab('daily',this)"><span class="nav-icon">📅</span>日次</button>
+  <button class="nav-item" onclick="switchTab('staff',this)"><span class="nav-icon">👥</span>スタッフ</button>
+  <button class="nav-item" onclick="switchTab('exp',this)"><span class="nav-icon">💰</span>固定費</button>
+  <button class="nav-item" onclick="switchTab('monthly',this)"><span class="nav-icon">📊</span>月次</button>
+  <button class="nav-item" onclick="switchTab('settings',this)"><span class="nav-icon">⚙</span>設定</button>
+</nav>
+
+<button class="fab" id="fab" onclick="openAddModal()">＋</button>
+
+<!-- ===== MODAL: スタッフ ===== -->
+<div class="modal-overlay" id="staff-modal" onclick="closeModal('staff-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="staff-modal-title">スタッフを追加</div><button class="btn btn-ghost btn-sm" onclick="closeModal('staff-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">氏名<span class="req">*</span></label><input class="input" id="s-name" type="text" placeholder="例：田中 花子"></div>
+      <div class="field">
+        <label class="field-label">雇用形態</label>
+        <select class="select" id="s-type" onchange="syncStaffType()">
+          <option value="アルバイト">アルバイト</option>
+          <option value="パート">パート</option>
+          <option value="正社員">正社員</option>
+          <option value="契約社員">契約社員</option>
+        </select>
+      </div>
+      <div id="s-hourly-field">
+        <div class="field" style="margin-bottom:0"><label class="field-label">時給（円）<span class="req">*</span></label><input class="input input-num" id="s-hourly" type="number" inputmode="numeric" placeholder="1100"></div>
+      </div>
+      <div id="s-monthly-field" style="display:none">
+        <div class="field" style="margin-bottom:0"><label class="field-label">月給（円）<span class="req">*</span></label><input class="input input-num" id="s-monthly" type="number" inputmode="numeric" placeholder="250000"></div>
+      </div>
+      <div class="field" style="margin-top:14px;margin-bottom:0"><label class="field-label">備考</label><input class="input" id="s-note" type="text" placeholder="任意"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="s-save-btn" onclick="saveStaff()">保存する</button>
+      <button class="btn btn-danger btn-sm" id="s-del-btn" onclick="deleteStaff()" style="display:none">このスタッフを削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: 固定費 ===== -->
+<div class="modal-overlay" id="exp-modal" onclick="closeModal('exp-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="exp-modal-title">固定費を追加</div><button class="btn btn-ghost btn-sm" onclick="closeModal('exp-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">費目名<span class="req">*</span></label><input class="input" id="e-name" type="text" placeholder="例：家賃"></div>
+      <div class="field">
+        <label class="field-label">カテゴリ</label>
+        <select class="select" id="e-cat">
+          <option value="地代家賃">地代家賃</option>
+          <option value="水道光熱費">水道光熱費</option>
+          <option value="通信費">通信費</option>
+          <option value="リース料">リース料</option>
+          <option value="広告宣伝費">広告宣伝費</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0"><label class="field-label">月額（円）<span class="req">*</span></label><input class="input input-num" id="e-amount" type="number" inputmode="numeric" placeholder="0"></div>
+      <div class="field" style="margin-top:14px;margin-bottom:0"><label class="field-label">メモ</label><input class="input" id="e-memo" type="text" placeholder="任意"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="e-save-btn" onclick="saveExpense()">保存する</button>
+      <button class="btn btn-danger btn-sm" id="e-del-btn" onclick="deleteExpense()" style="display:none">この費目を削除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG — デプロイ後にURLを書き換える
+// ============================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbxKPO1-TElEg-t4r95PTzn8-jMX7YYcyGpaOBgk7HxtZoYkxMMN9xb61BtYDZj1I_4RwA/exec';
+
+// ============================================================
+// STATE
+// ============================================================
+const S = {
+  staff: [], expenses: [], monthlySummary: [], config: {},
+  dailyByDate: {},      // { 'YYYY-MM-DD': { sales, cost, varexp, memo, id } }
+  attendanceByDate: {}, // { 'YYYY-MM-DD': [ { staffId, hours, laborCost }, ... ] }
+  currentTab: 'dash',
+  currentStaffId: null,
+  currentExpId: null,
+  dashMonth: '',        // YYYY-MM
+  laborDetailMode: false,
+};
+
+// ============================================================
+// API
+// ============================================================
+async function apiGet(params) {
+  const r = await fetch(API_URL + '?' + new URLSearchParams(params));
+  return r.json();
+}
+async function apiPost(data) {
+  const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) });
+  return r.json();
+}
+function setSyncing(st) {
+  const d = document.getElementById('sync-dot'), l = document.getElementById('sync-label');
+  if (st === 'syncing') { d.className = 'sync-dot syncing'; l.textContent = '同期中…'; }
+  else if (st === 'error') { d.className = 'sync-dot error'; l.textContent = 'エラー'; }
+  else { d.className = 'sync-dot'; l.textContent = '同期済み'; }
+}
+
+// ============================================================
+// LOAD
+// ============================================================
+async function loadAll() {
+  showLoading(true); setSyncing('syncing');
+  try {
+    const base = await apiGet({ action: 'getAll' });
+    if (base.error) throw new Error(base.error);
+    S.staff    = base.staff || [];
+    S.expenses = base.expenses || [];
+    S.monthlySummary = base.monthlySummary || [];
+    S.config   = base.config || {};
+    applyConfig();
+
+    // 今月の日次データを取得
+    await loadMonthDaily(S.dashMonth);
+
+    setSyncing('ok');
+    renderAll();
+  } catch(e) { setSyncing('error'); showToast('⚠ データ取得に失敗しました'); console.error(e); }
+  finally { showLoading(false); }
+}
+
+async function loadMonthDaily(month) {
+  const res = await apiGet({ action: 'getDaily', month });
+  const daily = res.daily || [];
+  const attend = res.attendance || [];
+
+  S.dailyByDate = {};
+  daily.forEach(r => {
+    const d = String(r['日付']);
+    S.dailyByDate[d] = {
+      id: String(r['ID'] || ''),
+      sales: parseFloat(r['売上（税抜）']) || 0,
+      cost: parseFloat(r['仕入原価']) || 0,
+      varexp: parseFloat(r['変動販管費']) || 0,
+      memo: r['変動費メモ'] || '',
+      note: r['備考'] || '',
+    };
+  });
+
+  S.attendanceByDate = {};
+  attend.forEach(r => {
+    const d = String(r['日付']);
+    if (!S.attendanceByDate[d]) S.attendanceByDate[d] = [];
+    S.attendanceByDate[d].push({
+      id: String(r['ID'] || ''),
+      staffId: String(r['スタッフID'] || ''),
+      staffName: r['スタッフ名'] || '',
+      hours: parseFloat(r['労働時間']) || 0,
+      laborCost: parseFloat(r['人件費']) || 0,
+    });
+  });
+}
+
+// ============================================================
+// APPLY CONFIG
+// ============================================================
+function applyConfig() {
+  if (S.config['店舗名']) document.getElementById('store-name').textContent = S.config['店舗名'];
+  document.getElementById('cfg-store').value = S.config['店舗名'] || '';
+  document.getElementById('cfg-cost-rate').value = S.config['目標原価率'] ? Math.round(parseFloat(S.config['目標原価率']) * 100) : 30;
+  document.getElementById('cfg-fl-rate').value = S.config['目標FL比率'] ? Math.round(parseFloat(S.config['目標FL比率']) * 100) : 60;
+  document.getElementById('cfg-profit-rate').value = S.config['目標営業利益率'] ? Math.round(parseFloat(S.config['目標営業利益率']) * 100) : 15;
+  document.getElementById('kpi-fl-target').textContent = S.config['目標FL比率'] ? Math.round(parseFloat(S.config['目標FL比率']) * 100) + '%' : '60%';
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  renderDash();
+  renderStaffList();
+  renderExpList();
+  renderMonthlyList();
+  buildStaffTimeRows(); // 日次入力のスタッフ行を再構築
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function shiftDashMonth(delta) {
+  const [y, m] = S.dashMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  S.dashMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  showLoading(true);
+  loadMonthDaily(S.dashMonth).then(() => { renderDash(); showLoading(false); });
+}
+
+function renderDash() {
+  document.getElementById('dash-month-label').textContent =
+    S.dashMonth.replace('-', '年') + '月';
+
+  // 当月の集計
+  const days = Object.keys(S.dailyByDate).filter(d => d.startsWith(S.dashMonth)).sort();
+  const sales   = days.reduce((s, d) => s + (S.dailyByDate[d]?.sales  || 0), 0);
+  const cost    = days.reduce((s, d) => s + (S.dailyByDate[d]?.cost   || 0), 0);
+  const varexp  = days.reduce((s, d) => s + (S.dailyByDate[d]?.varexp || 0), 0);
+  const labor   = days.reduce((s, d) => {
+    const rows = S.attendanceByDate[d] || [];
+    return s + rows.reduce((a, r) => a + (r.laborCost || 0), 0);
+  }, 0);
+  // 合計入力モードの場合はdailyのlaborTotalを使う（将来の連携用フィールド）
+  const fixedExp = S.expenses.reduce((s, e) => s + (parseFloat(e['月額（円）']) || 0), 0);
+  const gross   = sales - cost;
+  const profit  = gross - labor - varexp - fixedExp;
+  const costRate  = sales > 0 ? cost / sales : null;
+  const grossRate = sales > 0 ? gross / sales : null;
+  const laborRate = sales > 0 ? labor / sales : null;
+  const flRate    = sales > 0 ? (cost + labor) / sales : null;
+  const profitRate = sales > 0 ? profit / sales : null;
+  const tgtFL = parseFloat(S.config['目標FL比率']) || 0.60;
+
+  // KPI
+  document.getElementById('kpi-sales').textContent = sales > 0 ? fmtY(sales) : '—';
+  document.getElementById('kpi-sales-days').textContent = days.length + '日分';
+  setEl('kpi-gross-rate', grossRate, fmtPct, grossRate >= 0.65 ? 'kpi-safe' : grossRate >= 0.55 ? 'kpi-warn' : 'kpi-danger');
+  setEl('kpi-cost-rate-sub', costRate, fmtPct, '');
+  document.getElementById('kpi-cost-rate-sub').textContent = costRate !== null ? fmtPct(costRate) : '—';
+  setEl('kpi-fl', flRate, fmtPct, flRate !== null ? (flRate <= tgtFL ? 'kpi-safe' : 'kpi-danger') : 'kpi-blue');
+  const pEl = document.getElementById('kpi-profit');
+  pEl.textContent = sales > 0 ? fmtY(profit) : '—';
+  pEl.className = 'kpi-value ' + (profit > 0 ? 'kpi-safe' : sales > 0 ? 'kpi-danger' : 'kpi-blue');
+  document.getElementById('kpi-profit-rate').textContent = profitRate !== null ? '利益率 ' + fmtPct(profitRate) : '利益率 —';
+
+  // PL
+  plRow('pl-sales', sales, null, 'v-blue');
+  plRow('pl-cost', cost, costRate);
+  plRow('pl-gross', gross, grossRate, gross >= 0 ? 'v-safe' : 'v-danger');
+  plRow('pl-labor', labor, laborRate);
+  plRow('pl-varexp', varexp, sales > 0 ? varexp / sales : null);
+  plRow('pl-fixed', fixedExp, sales > 0 ? fixedExp / sales : null);
+  plRow('pl-profit', profit, profitRate, profit >= 0 ? 'v-safe' : 'v-danger');
+
+  // BEP
+  const varRate = sales > 0 ? (cost + varexp) / sales : 0;
+  const bep = varRate < 1 && fixedExp > 0 ? fixedExp / (1 - varRate) : 0;
+  document.getElementById('bep-fixed').textContent = fmtY(fixedExp);
+  document.getElementById('bep-var-rate').textContent = varRate > 0 ? fmtPct(varRate) : '—';
+  document.getElementById('bep-sales').textContent = bep > 0 ? fmtY(bep) : '—';
+  if (bep > 0 && sales > 0) {
+    const ach = sales / bep;
+    document.getElementById('bep-achieve').textContent = fmtPct(ach);
+    const bar = document.getElementById('bep-bar');
+    bar.style.width = Math.min(ach * 100, 100) + '%';
+    bar.className = 'progress-fill ' + (ach >= 1 ? 'fill-safe' : ach >= 0.8 ? 'fill-warn' : 'fill-danger');
+  } else {
+    document.getElementById('bep-achieve').textContent = '—';
+  }
+
+  // 直近7日
+  const recent = [...days].reverse().slice(0, 7);
+  const dl = document.getElementById('dash-daily-list');
+  if (!recent.length) { dl.innerHTML = emptyHTML('📅', 'まだ日次データがありません', '日次タブから入力してください'); return; }
+  dl.innerHTML = recent.map(d => {
+    const row = S.dailyByDate[d];
+    const dayLabor = (S.attendanceByDate[d] || []).reduce((s, r) => s + r.laborCost, 0);
+    const r = row.sales > 0 ? row.cost / row.sales : null;
+    const fl = row.sales > 0 ? (row.cost + dayLabor) / row.sales : null;
+    return `<div class="list-item" onclick="openDailyForDate('${d}')">
+      <div class="list-item-main">
+        <div class="list-item-name">${fmtDate(d)}</div>
+        <div class="list-item-sub">売上 ${fmtY(row.sales)}　原価率 ${r !== null ? fmtPct(r) : '—'}</div>
+      </div>
+      <div class="list-item-right">
+        <div class="list-item-value">${fmtY(row.sales - row.cost - dayLabor - row.varexp)}</div>
+        <div class="list-item-label" style="${fl !== null && fl > (tgtFL) ? 'color:var(--red)' : ''}">FL ${fl !== null ? fmtPct(fl) : '—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function plRow(id, val, rate, cls) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.textContent = fmtY(val);
+    if (cls) el.className = 'pl-value ' + cls;
+  }
+  const rateId = id.replace('pl-', 'pl-') + '-rate';
+  const rEl = document.getElementById(rateId);
+  if (rEl && rate !== null && rate !== undefined) rEl.textContent = fmtPct(rate);
+}
+
+function setEl(id, val, fmt, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = val !== null ? fmt(val) : '—';
+  if (cls) el.className = 'kpi-value ' + cls;
+}
+
+// ============================================================
+// 日次入力
+// ============================================================
+function openDailyForDate(date) {
+  switchTab('daily', document.querySelectorAll('.nav-item')[1]);
+  document.getElementById('daily-date').value = date;
+  loadDailyData();
+}
+
+function loadDailyData() {
+  const date = document.getElementById('daily-date').value;
+  if (!date) return;
+  const row = S.dailyByDate[date] || {};
+  const attend = S.attendanceByDate[date] || [];
+
+  document.getElementById('d-sales').value    = row.sales  || '';
+  document.getElementById('d-cost').value     = row.cost   || '';
+  document.getElementById('d-varexp').value   = row.varexp || '';
+  document.getElementById('d-varexp-memo').value = row.memo || '';
+
+  // 削除ボタン表示
+  document.getElementById('daily-del-btn').style.display = row.id ? '' : 'none';
+
+  // スタッフ別モードの時間を復元
+  if (S.laborDetailMode && attend.length > 0) {
+    attend.forEach(a => {
+      const inp = document.getElementById('stime-' + a.staffId);
+      if (inp) inp.value = a.hours || '';
+    });
+  } else {
+    // 合計入力モード：勤怠の合計を合計欄に表示
+    const totalLabor = attend.reduce((s, a) => s + a.laborCost, 0);
+    document.getElementById('d-labor-total').value = totalLabor || '';
+  }
+  recalcDaily();
+}
+
+function toggleLaborMode() {
+  S.laborDetailMode = document.getElementById('labor-mode-toggle').checked;
+  document.getElementById('labor-simple-mode').style.display = S.laborDetailMode ? 'none' : '';
+  document.getElementById('labor-detail-mode').style.display = S.laborDetailMode ? '' : 'none';
+  recalcDaily();
+}
+
+function buildStaffTimeRows() {
+  const container = document.getElementById('staff-time-rows');
+  if (!S.staff.length) {
+    container.innerHTML = `<div class="empty-state" style="padding:20px"><div class="es">スタッフタブで登録してください</div></div>`;
+    return;
+  }
+  container.innerHTML = S.staff.map(st => {
+    const isHourly = st['雇用形態'] !== '正社員' && st['雇用形態'] !== '契約社員';
+    const wage = isHourly ? parseFloat(st['時給']) || 0 : parseFloat(st['月給']) || 0;
+    const hint = isHourly ? `時給 ${fmtY(wage)}` : `月給 ${fmtY(wage)}`;
+    return `<div class="staff-row-card">
+      <div class="staff-row-hdr">
+        <span style="font-size:13px;font-weight:700">${st['氏名']}</span>
+        <span style="font-size:11px;color:var(--text3)">${hint}</span>
+      </div>
+      <div class="input-row">
+        <div class="field" style="margin-bottom:0">
+          <label class="field-label" style="font-size:11px">労働時間（h）</label>
+          <input class="input input-num" id="stime-${st['ID']}" type="number" inputmode="decimal" placeholder="0.0" step="0.5"
+            data-staffid="${st['ID']}" data-staffname="${st['氏名']}"
+            data-wage="${wage}" data-is-hourly="${isHourly ? '1' : '0'}"
+            oninput="recalcDaily()">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label class="field-label" style="font-size:11px">人件費</label>
+          <input class="input input-ro" id="scost-${st['ID']}" readonly placeholder="—">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function recalcDaily() {
+  const sales  = parseFloat(document.getElementById('d-sales').value) || 0;
+  const cost   = parseFloat(document.getElementById('d-cost').value) || 0;
+  const varexp = parseFloat(document.getElementById('d-varexp').value) || 0;
+
+  // 人件費計算
+  let labor = 0;
+  if (S.laborDetailMode) {
+    S.staff.forEach(st => {
+      const inp = document.getElementById('stime-' + st['ID']);
+      if (!inp) return;
+      const hours = parseFloat(inp.value) || 0;
+      const isHourly = inp.dataset.isHourly === '1';
+      const wage = parseFloat(inp.dataset.wage) || 0;
+      let lc = 0;
+      if (isHourly) {
+        lc = hours * wage;
+      } else {
+        // 月給の場合：月の営業日数で割って日割り
+        const opDays = Object.keys(S.dailyByDate).filter(d => d.startsWith(S.dashMonth)).length || 25;
+        lc = hours > 0 ? (wage / (opDays * 8)) * hours : 0; // 8h/日で日割り
+      }
+      labor += lc;
+      const ce = document.getElementById('scost-' + st['ID']);
+      if (ce) ce.value = lc > 0 ? fmtY(Math.round(lc)) : '—';
+    });
+    document.getElementById('labor-detail-total').textContent = fmtY(Math.round(labor));
+  } else {
+    labor = parseFloat(document.getElementById('d-labor-total').value) || 0;
+  }
+
+  // 固定費日割り
+  const fixedExp = S.expenses.reduce((s, e) => s + (parseFloat(e['月額（円）']) || 0), 0);
+  const opDays = Math.max(Object.keys(S.dailyByDate).filter(d => d.startsWith(S.dashMonth)).length, 1);
+  const fixedDaily = fixedExp / opDays;
+
+  const gross  = sales - cost;
+  const profit = gross - labor - varexp - fixedDaily;
+  const fl = sales > 0 ? (cost + labor) / sales : null;
+
+  // プレビュー更新
+  setPlPreview('dp-sales', sales, null, 'v-blue');
+  setPlPreview('dp-cost', cost, sales > 0 ? cost / sales : null);
+  setPlPreview('dp-gross', gross, sales > 0 ? gross / sales : null, gross >= 0 ? 'v-safe' : 'v-danger');
+  setPlPreview('dp-labor', labor, sales > 0 ? labor / sales : null);
+  setPlPreview('dp-varexp', varexp, null);
+  document.getElementById('dp-fixed').textContent = fixedDaily > 0 ? fmtY(Math.round(fixedDaily)) : '—';
+  document.getElementById('dp-fixed-hint').textContent = fixedExp > 0 ? `月${fmtY(fixedExp)} ÷ ${opDays}日` : '';
+  setPlPreview('dp-profit', Math.round(profit), sales > 0 ? profit / sales : null, profit >= 0 ? 'v-safe' : 'v-danger');
+  const flEl = document.getElementById('dp-fl');
+  flEl.textContent = fl !== null ? fmtPct(fl) : '—';
+  const tgtFL = parseFloat(S.config['目標FL比率']) || 0.60;
+  flEl.className = fl !== null ? (fl <= tgtFL ? 'sv-safe' : 'sv-danger') : '';
+}
+
+function setPlPreview(baseId, val, rate, cls) {
+  const el = document.getElementById(baseId);
+  if (el) {
+    el.textContent = fmtY(Math.round(val));
+    if (cls) el.className = 'pl-value ' + cls;
+  }
+  const rEl = document.getElementById(baseId + '-rate');
+  if (rEl) rEl.textContent = rate !== null && rate !== undefined ? fmtPct(rate) : '—';
+}
+
+async function saveDaily() {
+  const date = document.getElementById('daily-date').value;
+  if (!date) { showToast('❌ 対象日を選択してください'); return; }
+  const sales  = parseFloat(document.getElementById('d-sales').value) || 0;
+  const cost   = parseFloat(document.getElementById('d-cost').value) || 0;
+  const varexp = parseFloat(document.getElementById('d-varexp').value) || 0;
+  const memo   = document.getElementById('d-varexp-memo').value.trim();
+  const existingId = S.dailyByDate[date]?.id || '';
+
+  setSyncing('syncing');
+  document.getElementById('daily-save-btn').disabled = true;
+  try {
+    // 日次実績を保存
+    const res = await apiPost({ action: 'saveDaily', data: {
+      'ID': existingId,
+      '日付': date,
+      '売上（税抜）': sales,
+      '仕入原価': cost,
+      '変動販管費': varexp,
+      '変動費メモ': memo,
+    }});
+    if (res.error) throw new Error(res.error);
+
+    // スタッフ別モードの場合、勤怠も保存
+    if (S.laborDetailMode) {
+      const records = [];
+      S.staff.forEach(st => {
+        const inp = document.getElementById('stime-' + st['ID']);
+        if (!inp) return;
+        const hours = parseFloat(inp.value) || 0;
+        if (hours <= 0) return;
+        const isHourly = inp.dataset.isHourly === '1';
+        const wage = parseFloat(inp.dataset.wage) || 0;
+        const opDays = Math.max(Object.keys(S.dailyByDate).filter(d => d.startsWith(S.dashMonth)).length, 1);
+        const lc = isHourly ? hours * wage : (wage / (opDays * 8)) * hours;
+        const existAttend = (S.attendanceByDate[date] || []).find(a => a.staffId === st['ID']);
+        records.push({
+          id: existAttend?.id || '',
+          date, staffId: st['ID'], staffName: st['氏名'],
+          hours, laborCost: Math.round(lc),
+        });
+      });
+      if (records.length > 0) {
+        const r2 = await apiPost({ action: 'saveAttendance', records });
+        if (r2.error) throw new Error(r2.error);
+      }
+    } else {
+      // 合計入力モード：laborTotalをスタッフ全体合算として1レコード保存
+      const totalLabor = parseFloat(document.getElementById('d-labor-total').value) || 0;
+      if (totalLabor > 0) {
+        const existAttend = (S.attendanceByDate[date] || []).find(a => a.staffId === '__total__');
+        const r2 = await apiPost({ action: 'saveAttendance', records: [{
+          id: existAttend?.id || '',
+          date, staffId: '__total__', staffName: '合計入力',
+          hours: 0, laborCost: totalLabor,
+        }]});
+        if (r2.error) throw new Error(r2.error);
+      }
+    }
+
+    setSyncing('ok');
+    showToast('✅ 保存しました');
+    await loadMonthDaily(S.dashMonth);
+    renderDash();
+    document.getElementById('daily-del-btn').style.display = '';
+  } catch(e) { setSyncing('error'); showToast('⚠ 保存に失敗しました'); console.error(e); }
+  finally { document.getElementById('daily-save-btn').disabled = false; }
+}
+
+async function deleteDaily() {
+  const date = document.getElementById('daily-date').value;
+  if (!date || !S.dailyByDate[date]?.id) return;
+  if (!confirm(fmtDate(date) + ' のデータを削除しますか？')) return;
+  setSyncing('syncing');
+  try {
+    await apiPost({ action: 'deleteDaily', id: S.dailyByDate[date].id });
+    setSyncing('ok'); showToast('🗑 削除しました');
+    await loadMonthDaily(S.dashMonth);
+    renderDash();
+    loadDailyData();
+  } catch(e) { setSyncing('error'); showToast('⚠ 削除に失敗しました'); }
+}
+
+// ============================================================
+// STAFF LIST
+// ============================================================
+function renderStaffList() {
+  document.getElementById('staff-count').textContent = S.staff.length + '名';
+  const el = document.getElementById('staff-list');
+  if (!S.staff.length) { el.innerHTML = emptyHTML('👥', 'スタッフが登録されていません', '右下の ＋ で追加'); return; }
+  el.innerHTML = S.staff.map(st => {
+    const isHourly = st['雇用形態'] !== '正社員' && st['雇用形態'] !== '契約社員';
+    const wage = isHourly ? parseFloat(st['時給']) || 0 : parseFloat(st['月給']) || 0;
+    return `<div class="list-item" onclick="editStaff('${st['ID']}')">
+      <div class="list-item-main">
+        <div class="list-item-name">${st['氏名']}</div>
+        <div class="list-item-sub">${st['雇用形態']}</div>
+      </div>
+      <div class="list-item-right">
+        <div class="list-item-value">${fmtY(wage)}</div>
+        <div class="list-item-label">${isHourly ? '/ 時間' : '/ 月'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// EXPENSE LIST
+// ============================================================
+function renderExpList() {
+  const total = S.expenses.reduce((s, e) => s + (parseFloat(e['月額（円）']) || 0), 0);
+  document.getElementById('exp-count').textContent = S.expenses.length + '件';
+  document.getElementById('exp-total').textContent = fmtY(total);
+  const el = document.getElementById('exp-list');
+  if (!S.expenses.length) { el.innerHTML = emptyHTML('💰', '固定費が登録されていません', '右下の ＋ で追加'); return; }
+  el.innerHTML = S.expenses.map(e => `<div class="list-item" onclick="editExpense('${e['ID']}')">
+    <div class="list-item-main">
+      <div class="list-item-name">${e['費目名']}</div>
+      <div class="list-item-sub">${e['カテゴリ']}${e['メモ'] ? ' · ' + e['メモ'] : ''}</div>
+    </div>
+    <div class="list-item-right">
+      <div class="list-item-value">${fmtY(parseFloat(e['月額（円）']) || 0)}</div>
+      <div class="list-item-label">/ 月</div>
+    </div>
+  </div>`).join('');
+}
+
+// ============================================================
+// MONTHLY LIST
+// ============================================================
+function renderMonthlyList() {
+  const el = document.getElementById('monthly-list');
+  const sorted = [...S.monthlySummary].sort((a, b) => b['年月'].localeCompare(a['年月']));
+  if (!sorted.length) { el.innerHTML = emptyHTML('📊', '月次データがありません', '設定タブから手動集計できます'); return; }
+  el.innerHTML = sorted.map(m => {
+    const sales = parseFloat(m['売上合計']) || 0;
+    const profit = parseFloat(m['営業利益']) || 0;
+    const fl = parseFloat(m['FL比率']) || null;
+    const tgtFL = parseFloat(S.config['目標FL比率']) || 0.60;
+    return `<div class="card" style="margin-bottom:10px">
+      <div class="card-header">
+        <div class="card-title">${m['年月'].replace('-', '年')}月</div>
+        <span class="chip ${fl !== null ? (fl <= tgtFL ? 'chip-green' : 'chip-red') : ''}">FL ${fl !== null ? fmtPct(fl) : '—'}</span>
+      </div>
+      <div class="card-body">
+        <div class="pl-row"><span class="pl-label">売上高</span><span class="pl-value v-blue">${fmtY(sales)}</span></div>
+        <div class="pl-row"><span class="pl-label">粗利益</span><span class="pl-value">${fmtY(parseFloat(m['粗利']) || 0)}<span style="font-size:12px;color:var(--text3);margin-left:6px">${m['原価率'] ? fmtPct(parseFloat(m['原価率'])) + '原価' : ''}</span></span></div>
+        <div class="pl-row"><span class="pl-label">人件費</span><span class="pl-value">${fmtY(parseFloat(m['人件費合計']) || 0)}</span></div>
+        <div class="pl-row pl-total"><span class="pl-label">営業利益</span><span class="pl-value ${profit >= 0 ? 'v-safe' : 'v-danger'}">${fmtY(profit)}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// STAFF MODAL
+// ============================================================
+function openStaffModal(id) {
+  S.currentStaffId = id; const isEdit = id !== null;
+  const st = isEdit ? S.staff.find(x => x['ID'] === id) : null;
+  document.getElementById('staff-modal-title').textContent = isEdit ? 'スタッフを編集' : 'スタッフを追加';
+  document.getElementById('s-name').value = st ? st['氏名'] : '';
+  document.getElementById('s-type').value = st ? st['雇用形態'] : 'アルバイト';
+  document.getElementById('s-hourly').value = st ? st['時給'] : '';
+  document.getElementById('s-monthly').value = st ? st['月給'] : '';
+  document.getElementById('s-note').value = st ? st['備考'] : '';
+  document.getElementById('s-del-btn').style.display = isEdit ? '' : 'none';
+  syncStaffType();
+  document.getElementById('staff-modal').classList.add('open');
+}
+function editStaff(id) { openStaffModal(id); }
+function syncStaffType() {
+  const t = document.getElementById('s-type').value;
+  const isMonthly = t === '正社員' || t === '契約社員';
+  document.getElementById('s-hourly-field').style.display = isMonthly ? 'none' : '';
+  document.getElementById('s-monthly-field').style.display = isMonthly ? '' : 'none';
+}
+async function saveStaff() {
+  const name = document.getElementById('s-name').value.trim();
+  if (!name) { showToast('❌ 氏名を入力してください'); return; }
+  const type = document.getElementById('s-type').value;
+  const isMonthly = type === '正社員' || type === '契約社員';
+  const hourly = parseFloat(document.getElementById('s-hourly').value) || 0;
+  const monthly = parseFloat(document.getElementById('s-monthly').value) || 0;
+  const note = document.getElementById('s-note').value.trim();
+  const id = S.currentStaffId || genId();
+  setSyncing('syncing'); document.getElementById('s-save-btn').disabled = true;
+  try {
+    const res = await apiPost({ action: 'saveStaff', data: { 'ID': id, '氏名': name, '雇用形態': type, '時給': isMonthly ? 0 : hourly, '月給': isMonthly ? monthly : 0, '備考': note }});
+    if (res.error) throw new Error(res.error);
+    setSyncing('ok'); closeModal('staff-modal'); showToast('✅ 保存しました');
+    await loadAll();
+  } catch(e) { setSyncing('error'); showToast('⚠ 保存に失敗しました'); }
+  finally { document.getElementById('s-save-btn').disabled = false; }
+}
+async function deleteStaff() {
+  if (!confirm('このスタッフを削除しますか？')) return;
+  setSyncing('syncing');
+  try { await apiPost({ action: 'deleteStaff', id: S.currentStaffId }); setSyncing('ok'); closeModal('staff-modal'); showToast('🗑 削除しました'); await loadAll(); }
+  catch(e) { setSyncing('error'); showToast('⚠ 削除に失敗しました'); }
+}
+
+// ============================================================
+// EXPENSE MODAL
+// ============================================================
+function openExpModal(id) {
+  S.currentExpId = id; const isEdit = id !== null;
+  const e = isEdit ? S.expenses.find(x => x['ID'] === id) : null;
+  document.getElementById('exp-modal-title').textContent = isEdit ? '固定費を編集' : '固定費を追加';
+  document.getElementById('e-name').value = e ? e['費目名'] : '';
+  document.getElementById('e-cat').value = e ? e['カテゴリ'] : 'その他';
+  document.getElementById('e-amount').value = e ? e['月額（円）'] : '';
+  document.getElementById('e-memo').value = e ? e['メモ'] : '';
+  document.getElementById('e-del-btn').style.display = isEdit ? '' : 'none';
+  document.getElementById('exp-modal').classList.add('open');
+}
+function editExpense(id) { openExpModal(id); }
+async function saveExpense() {
+  const name = document.getElementById('e-name').value.trim();
+  const amount = parseFloat(document.getElementById('e-amount').value) || 0;
+  if (!name) { showToast('❌ 費目名を入力してください'); return; }
+  const id = S.currentExpId || genId();
+  setSyncing('syncing'); document.getElementById('e-save-btn').disabled = true;
+  try {
+    const res = await apiPost({ action: 'saveExpense', data: { 'ID': id, '費目名': name, 'カテゴリ': document.getElementById('e-cat').value, '月額（円）': amount, 'メモ': document.getElementById('e-memo').value.trim() }});
+    if (res.error) throw new Error(res.error);
+    setSyncing('ok'); closeModal('exp-modal'); showToast('✅ 保存しました'); await loadAll();
+  } catch(e) { setSyncing('error'); showToast('⚠ 保存に失敗しました'); }
+  finally { document.getElementById('e-save-btn').disabled = false; }
+}
+async function deleteExpense() {
+  if (!confirm('この費目を削除しますか？')) return;
+  setSyncing('syncing');
+  try { await apiPost({ action: 'deleteExpense', id: S.currentExpId }); setSyncing('ok'); closeModal('exp-modal'); showToast('🗑 削除しました'); await loadAll(); }
+  catch(e) { setSyncing('error'); showToast('⚠ 削除に失敗しました'); }
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+async function saveSettings() {
+  const store = document.getElementById('cfg-store').value.trim();
+  const costRate = (parseFloat(document.getElementById('cfg-cost-rate').value) || 30) / 100;
+  const flRate   = (parseFloat(document.getElementById('cfg-fl-rate').value) || 60) / 100;
+  const profRate = (parseFloat(document.getElementById('cfg-profit-rate').value) || 15) / 100;
+  setSyncing('syncing');
+  try {
+    await apiPost({ action: 'saveConfig', data: { '店舗名': store, '目標原価率': costRate, '目標FL比率': flRate, '目標営業利益率': profRate }});
+    S.config['店舗名'] = store; S.config['目標FL比率'] = flRate;
+    if (store) document.getElementById('store-name').textContent = store;
+    setSyncing('ok'); showToast('✅ 設定を保存しました'); applyConfig(); renderDash();
+  } catch(e) { setSyncing('error'); showToast('⚠ 保存に失敗しました'); }
+}
+
+async function aggregateManual() {
+  setSyncing('syncing');
+  try {
+    const res = await apiPost({ action: 'aggregateMonth', month: S.dashMonth });
+    if (res.error) throw new Error(res.error);
+    setSyncing('ok'); showToast('✅ 月次サマリーを更新しました');
+    await loadAll();
+  } catch(e) { setSyncing('error'); showToast('⚠ 集計に失敗しました'); }
+}
+
+// ============================================================
+// TAB / MODAL
+// ============================================================
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+  S.currentTab = name;
+  const fabHide = ['dash', 'daily', 'monthly', 'settings'];
+  document.getElementById('fab').className = 'fab' + (fabHide.includes(name) ? ' hidden' : '');
+}
+function openAddModal() {
+  const t = S.currentTab;
+  if (t === 'staff') openStaffModal(null);
+  else if (t === 'exp') openExpModal(null);
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ============================================================
+// UTILS
+// ============================================================
+function fmtY(v) { if (!v && v !== 0) return '—'; return '¥' + Math.round(v).toLocaleString(); }
+function fmtPct(v) { if (v === null || v === undefined) return '—'; return (v * 100).toFixed(1) + '%'; }
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-');
+  const wd = ['日','月','火','水','木','金','土'][new Date(d).getDay()];
+  return `${parseInt(m)}/${parseInt(day)}（${wd}）`;
+}
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+function showLoading(v) { document.getElementById('loading').className = 'loading-overlay' + (v ? '' : ' hidden'); }
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+function emptyHTML(icon, text, sub) { return `<div class="empty-state"><div class="ei">${icon}</div><div class="et">${text}</div><div class="es">${sub}</div></div>`; }
+
+// タッチフィードバック
+document.addEventListener('touchstart', e => {
+  const b = e.target.closest('.btn,.nav-item,.list-item,.seg-btn,.fab,.month-btn');
+  if (b) { b.style.opacity = '.75'; setTimeout(() => b.style.opacity = '', 180); }
+}, { passive: true });
+
+// ============================================================
+// INIT
+// ============================================================
+const _now = new Date();
+S.dashMonth = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0');
+// 日次入力を今日にデフォルト
+document.getElementById('daily-date').value =
+  _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-' + String(_now.getDate()).padStart(2, '0');
+
+loadAll();
+</script>
+</body>
+</html>
