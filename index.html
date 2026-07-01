@@ -215,8 +215,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
     <div class="kpi-grid">
       <div class="kpi-card"><div class="kpi-label">売上合計</div><div class="kpi-value kpi-blue" id="kpi-sales">—</div><div class="kpi-sub" id="kpi-sales-days">— 日分</div></div>
-      <div class="kpi-card"><div class="kpi-label">粗利率</div><div class="kpi-value" id="kpi-gross-rate">—</div><div class="kpi-sub">原価率 <span id="kpi-cost-rate-sub">—</span></div></div>
-      <div class="kpi-card"><div class="kpi-label">FL比率</div><div class="kpi-value" id="kpi-fl">—</div><div class="kpi-sub">目標 <span id="kpi-fl-target">60%</span>以内</div></div>
+      <div class="kpi-card"><div class="kpi-label">粗利率</div><div class="kpi-value" id="kpi-gross-rate">—</div><div class="kpi-sub">F率 <span id="kpi-cost-rate-sub">—</span>　目標 <span id="kpi-f-target">30%</span></div></div>
+      <div class="kpi-card"><div class="kpi-label">FL比率</div><div class="kpi-value" id="kpi-fl">—</div><div class="kpi-sub">L率 <span id="kpi-l-rate">—</span>　目標 <span id="kpi-fl-target">60%</span>以内</div></div>
       <div class="kpi-card"><div class="kpi-label">営業利益</div><div class="kpi-value" id="kpi-profit">—</div><div class="kpi-sub" id="kpi-profit-rate">利益率 —</div></div>
     </div>
 
@@ -371,6 +371,39 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
   </div>
 
+  <!-- ===== 日次確認 ===== -->
+  <div id="tab-review" class="tab-panel">
+    <div class="month-nav">
+      <button class="month-btn" onclick="shiftReviewMonth(-1)">‹</button>
+      <div class="month-label" id="review-month-label">— 年 — 月</div>
+      <button class="month-btn" onclick="shiftReviewMonth(1)">›</button>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">日次一覧 <span class="badge" id="review-days-count">0日</span></div>
+        <div style="font-size:13px;color:var(--text2)">タップで編集</div>
+      </div>
+      <div id="review-daily-list"></div>
+    </div>
+    <!-- 月合計サマリー -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 月合計（速報）</div><span class="badge" id="review-op-days-badge">—日営業</span></div>
+      <div class="card-body">
+        <div class="pl-row"><span class="pl-label">売上合計</span><span class="pl-value v-blue" id="rv-sales">—</span></div>
+        <div class="pl-row"><span class="pl-label">仕入原価合計</span><div><span class="pl-value" id="rv-cost">—</span><span class="pl-rate" id="rv-cost-rate" style="margin-left:8px">—</span></div></div>
+        <div class="pl-row pl-subtotal"><span class="pl-label">粗利合計</span><div><span class="pl-value" id="rv-gross">—</span><span class="pl-rate" id="rv-gross-rate" style="margin-left:8px">—</span></div></div>
+        <div class="pl-row"><span class="pl-label">人件費合計</span><div><span class="pl-value" id="rv-labor">—</span><span class="pl-rate" id="rv-labor-rate" style="margin-left:8px">— (L率)</span></div></div>
+        <div class="pl-row"><span class="pl-label">変動販管費合計</span><span class="pl-value" id="rv-varexp">—</span></div>
+        <div class="pl-row"><span class="pl-label">固定費</span><span class="pl-value" id="rv-fixed">—</span></div>
+        <div class="pl-row pl-total"><span class="pl-label">営業利益（速報）</span><div><span class="pl-value" id="rv-profit">—</span><span class="pl-rate" id="rv-profit-rate" style="margin-left:8px">—</span></div></div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:var(--text2)">FL比率（速報）</span>
+          <span style="font-size:18px;font-weight:800" id="rv-fl">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== 月次 ===== -->
   <div id="tab-monthly" class="tab-panel">
     <div class="month-nav">
@@ -428,10 +461,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="card-header"><div class="card-title">目標値</div></div>
       <div class="card-body">
         <div class="input-row">
-          <div class="field"><label class="field-label">目標原価率（%）</label><input class="input input-num" id="cfg-cost-rate" type="number" inputmode="numeric" placeholder="30"></div>
-          <div class="field"><label class="field-label">目標FL比率（%）</label><input class="input input-num" id="cfg-fl-rate" type="number" inputmode="numeric" placeholder="60"></div>
+          <div class="field"><label class="field-label">目標F率・原価率（%）</label><input class="input input-num" id="cfg-cost-rate" type="number" inputmode="numeric" placeholder="30"></div>
+          <div class="field"><label class="field-label">目標L率・人件費率（%）</label><input class="input input-num" id="cfg-labor-rate" type="number" inputmode="numeric" placeholder="30"></div>
         </div>
-        <div class="field" style="margin-bottom:0"><label class="field-label">目標営業利益率（%）</label><input class="input input-num" id="cfg-profit-rate" type="number" inputmode="numeric" placeholder="15"></div>
+        <div class="input-row">
+          <div class="field"><label class="field-label">目標FL比率（%）</label><input class="input input-num" id="cfg-fl-rate" type="number" inputmode="numeric" placeholder="60"><div class="field-hint">F率＋L率の合計目安</div></div>
+          <div class="field"><label class="field-label">目標営業利益率（%）</label><input class="input input-num" id="cfg-profit-rate" type="number" inputmode="numeric" placeholder="15"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">勤怠設定</div></div>
+      <div class="card-body">
+        <div class="field" style="margin-bottom:0">
+          <label class="field-label">時間入力の単位</label>
+          <select class="select" id="cfg-time-unit">
+            <option value="1">1分単位（0.0166…h）</option>
+            <option value="15">15分単位（0.25h）</option>
+            <option value="30">30分単位（0.5h）</option>
+          </select>
+          <div class="field-hint">スタッフ別入力モードで使用</div>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -450,9 +500,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
   <button class="nav-item active" onclick="switchTab('dash',this)"><span class="nav-icon">🏠</span>ホーム</button>
-  <button class="nav-item" onclick="switchTab('daily',this)"><span class="nav-icon">📅</span>日次</button>
+  <button class="nav-item" onclick="switchTab('daily',this)"><span class="nav-icon">✏️</span>入力</button>
+  <button class="nav-item" onclick="switchTab('review',this)"><span class="nav-icon">📋</span>確認</button>
   <button class="nav-item" onclick="switchTab('staff',this)"><span class="nav-icon">👥</span>スタッフ</button>
-  <button class="nav-item" onclick="switchTab('exp',this)"><span class="nav-icon">💰</span>固定費</button>
   <button class="nav-item" onclick="switchTab('monthly',this)"><span class="nav-icon">📊</span>月次</button>
   <button class="nav-item" onclick="switchTab('settings',this)"><span class="nav-icon">⚙</span>設定</button>
 </nav>
@@ -538,6 +588,7 @@ const S = {
   currentExpId: null,
   dashMonth: '',        // YYYY-MM
   monthlyMonth: '',     // YYYY-MM（月次タブ）
+  reviewMonth: '',      // YYYY-MM（日次確認タブ）
   opDaysMap: {},        // { 'YYYY-MM': 26, ... } 営業日数マスタ
   laborDetailMode: false,
 };
@@ -643,9 +694,13 @@ function applyConfig() {
   if (S.config['店舗名']) document.getElementById('store-name').textContent = S.config['店舗名'];
   document.getElementById('cfg-store').value = S.config['店舗名'] || '';
   document.getElementById('cfg-cost-rate').value = S.config['目標原価率'] ? Math.round(parseFloat(S.config['目標原価率']) * 100) : 30;
+  document.getElementById('cfg-labor-rate').value = S.config['目標L率'] ? Math.round(parseFloat(S.config['目標L率']) * 100) : 30;
   document.getElementById('cfg-fl-rate').value = S.config['目標FL比率'] ? Math.round(parseFloat(S.config['目標FL比率']) * 100) : 60;
   document.getElementById('cfg-profit-rate').value = S.config['目標営業利益率'] ? Math.round(parseFloat(S.config['目標営業利益率']) * 100) : 15;
+  document.getElementById('cfg-time-unit').value = S.config['時間入力単位'] || '15';
   document.getElementById('kpi-fl-target').textContent = S.config['目標FL比率'] ? Math.round(parseFloat(S.config['目標FL比率']) * 100) + '%' : '60%';
+  const ftEl = document.getElementById('kpi-f-target');
+  if (ftEl) ftEl.textContent = S.config['目標原価率'] ? Math.round(parseFloat(S.config['目標原価率']) * 100) + '%' : '30%';
 }
 
 // ============================================================
@@ -653,6 +708,7 @@ function applyConfig() {
 // ============================================================
 function renderAll() {
   renderDash();
+  renderReviewTab();
   renderStaffList();
   renderExpList();
   renderMonthlyList();
@@ -705,9 +761,15 @@ function renderDash() {
   // KPI
   document.getElementById('kpi-sales').textContent = sales > 0 ? fmtY(sales) : '—';
   document.getElementById('kpi-sales-days').textContent = days.length + '日分';
-  setEl('kpi-gross-rate', grossRate, fmtPct, grossRate >= 0.65 ? 'kpi-safe' : grossRate >= 0.55 ? 'kpi-warn' : 'kpi-danger');
-  setEl('kpi-cost-rate-sub', costRate, fmtPct, '');
+  const tgtF = parseFloat(S.config['目標原価率']) || 0.30;
+  const tgtL = parseFloat(S.config['目標L率']) || 0.30;
+  setEl('kpi-gross-rate', grossRate, fmtPct, grossRate !== null ? (grossRate >= (1-tgtF-0.05) ? 'kpi-safe' : 'kpi-warn') : 'kpi-blue');
   document.getElementById('kpi-cost-rate-sub').textContent = costRate !== null ? fmtPct(costRate) : '—';
+  const fTargetEl = document.getElementById('kpi-f-target');
+  if (fTargetEl) fTargetEl.textContent = Math.round(tgtF*100) + '%';
+  // L率
+  const lRateEl = document.getElementById('kpi-l-rate');
+  if (lRateEl) lRateEl.textContent = laborRate !== null ? fmtPct(laborRate) : '—';
   setEl('kpi-fl', flRate, fmtPct, flRate !== null ? (flRate <= tgtFL ? 'kpi-safe' : 'kpi-danger') : 'kpi-blue');
   const pEl = document.getElementById('kpi-profit');
   pEl.textContent = sales > 0 ? fmtY(profit) : '—';
@@ -835,6 +897,9 @@ function buildStaffTimeRows() {
     const isHourly = st['雇用形態'] !== '正社員' && st['雇用形態'] !== '契約社員';
     const wage = isHourly ? parseFloat(st['時給']) || 0 : parseFloat(st['月給']) || 0;
     const hint = isHourly ? `時給 ${fmtY(wage)}` : `月給 ${fmtY(wage)}`;
+    const timeUnit = parseInt(S.config['時間入力単位'] || '15');
+    const stepVal = timeUnit === 1 ? '0.0167' : timeUnit === 30 ? '0.5' : '0.25';
+    const unitLabel = timeUnit === 1 ? '1分単位' : timeUnit === 30 ? '30分単位' : '15分単位';
     return `<div class="staff-row-card">
       <div class="staff-row-hdr">
         <span style="font-size:13px;font-weight:700">${st['氏名']}</span>
@@ -842,8 +907,8 @@ function buildStaffTimeRows() {
       </div>
       <div class="input-row">
         <div class="field" style="margin-bottom:0">
-          <label class="field-label" style="font-size:11px">労働時間（h）</label>
-          <input class="input input-num" id="stime-${st['ID']}" type="number" inputmode="decimal" placeholder="0.0" step="0.5"
+          <label class="field-label" style="font-size:11px">労働時間（h）<span style="color:var(--text3);font-weight:400">${isHourly ? ' · '+unitLabel : ''}</span></label>
+          <input class="input input-num" id="stime-${st['ID']}" type="number" inputmode="decimal" placeholder="0.00" step="${stepVal}"
             data-staffid="${st['ID']}" data-staffname="${st['氏名']}"
             data-wage="${wage}" data-is-hourly="${isHourly ? '1' : '0'}"
             oninput="recalcDaily()">
@@ -1276,16 +1341,22 @@ async function deleteExpense() {
 // SETTINGS
 // ============================================================
 async function saveSettings() {
-  const store = document.getElementById('cfg-store').value.trim();
-  const costRate = (parseFloat(document.getElementById('cfg-cost-rate').value) || 30) / 100;
-  const flRate   = (parseFloat(document.getElementById('cfg-fl-rate').value) || 60) / 100;
-  const profRate = (parseFloat(document.getElementById('cfg-profit-rate').value) || 15) / 100;
+  const store     = document.getElementById('cfg-store').value.trim();
+  const costRate  = (parseFloat(document.getElementById('cfg-cost-rate').value) || 30) / 100;
+  const laborRate = (parseFloat(document.getElementById('cfg-labor-rate').value) || 30) / 100;
+  const flRate    = (parseFloat(document.getElementById('cfg-fl-rate').value) || 60) / 100;
+  const profRate  = (parseFloat(document.getElementById('cfg-profit-rate').value) || 15) / 100;
+  const timeUnit  = document.getElementById('cfg-time-unit').value;
   setSyncing('syncing');
   try {
-    await apiPost({ action: 'saveConfig', data: { '店舗名': store, '目標原価率': costRate, '目標FL比率': flRate, '目標営業利益率': profRate }});
-    S.config['店舗名'] = store; S.config['目標FL比率'] = flRate;
+    await apiPost({ action: 'saveConfig', data: {
+      '店舗名': store, '目標原価率': costRate, '目標L率': laborRate,
+      '目標FL比率': flRate, '目標営業利益率': profRate, '時間入力単位': timeUnit
+    }});
+    Object.assign(S.config, { '店舗名': store, '目標FL比率': flRate, '目標L率': laborRate, '時間入力単位': timeUnit });
     if (store) document.getElementById('store-name').textContent = store;
     setSyncing('ok'); showToast('✅ 設定を保存しました'); applyConfig(); renderDash();
+    buildStaffTimeRows(); // 時間単位が変わったら再構築
   } catch(e) { setSyncing('error'); showToast('⚠ 保存に失敗しました'); }
 }
 
@@ -1308,8 +1379,9 @@ function switchTab(name, el) {
   document.getElementById('tab-' + name).classList.add('active');
   if (el) el.classList.add('active');
   S.currentTab = name;
-  const fabHide = ['dash', 'daily', 'monthly', 'settings'];
+  const fabHide = ['dash', 'daily', 'review', 'monthly', 'settings'];
   document.getElementById('fab').className = 'fab' + (fabHide.includes(name) ? ' hidden' : '');
+  if (name === 'review') renderReviewTab();
 }
 function openAddModal() {
   const t = S.currentTab;
@@ -1340,12 +1412,110 @@ document.addEventListener('touchstart', e => {
   if (b) { b.style.opacity = '.75'; setTimeout(() => b.style.opacity = '', 180); }
 }, { passive: true });
 
+
+// ============================================================
+// 日次確認タブ
+// ============================================================
+function shiftReviewMonth(delta) {
+  const [y, m] = S.reviewMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  S.reviewMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  const hasData = Object.keys(S.dailyByDate).some(d => d.startsWith(S.reviewMonth));
+  if (!hasData && S.reviewMonth !== S.dashMonth) {
+    showLoading(true);
+    loadMonthDaily(S.reviewMonth).then(() => { renderReviewTab(); showLoading(false); });
+  } else {
+    renderReviewTab();
+  }
+}
+
+function renderReviewTab() {
+  document.getElementById('review-month-label').textContent =
+    S.reviewMonth.replace('-', '年') + '月';
+
+  const tgtF  = parseFloat(S.config['目標原価率']) || 0.30;
+  const tgtL  = parseFloat(S.config['目標L率']) || 0.30;
+  const tgtFL = parseFloat(S.config['目標FL比率']) || 0.60;
+  const fixedExp = S.expenses.reduce((s, e) => s + (parseFloat(e['月額（円）']) || 0), 0);
+  const opDays = getOpDays(S.reviewMonth);
+
+  const days = Object.keys(S.dailyByDate)
+    .filter(d => d.startsWith(S.reviewMonth))
+    .sort();
+
+  document.getElementById('review-days-count').textContent = days.length + '日';
+  document.getElementById('review-op-days-badge').textContent =
+    (S.opDaysMap[S.reviewMonth] ? S.opDaysMap[S.reviewMonth] : '?') + '日営業';
+
+  // 日次一覧
+  const listEl = document.getElementById('review-daily-list');
+  if (!days.length) {
+    listEl.innerHTML = emptyHTML('📅', 'データがありません', 'まだこの月の入力がありません');
+  } else {
+    listEl.innerHTML = days.map(d => {
+      const row = S.dailyByDate[d];
+      const attend = S.attendanceByDate[d] || [];
+      const labor = attend.reduce((s, a) => s + (a.laborCost || 0), 0);
+      const gross = row.sales - row.cost;
+      const profit = gross - labor - row.varexp - (fixedExp / opDays);
+      const fRate = row.sales > 0 ? row.cost / row.sales : null;
+      const lRate = row.sales > 0 ? labor / row.sales : null;
+      const fl = row.sales > 0 ? (row.cost + labor) / row.sales : null;
+      const fOk = fRate !== null && fRate <= tgtF;
+      const lOk = lRate !== null && lRate <= tgtL;
+      return `<div class="list-item" onclick="openDailyForDate('${d}')">
+        <div class="list-item-main">
+          <div class="list-item-name">${fmtDate(d)}</div>
+          <div class="list-item-sub" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:3px">
+            <span class="chip ${fOk ? 'chip-green' : fRate !== null ? 'chip-red' : ''}">F ${fRate !== null ? fmtPct(fRate) : '—'}</span>
+            <span class="chip ${lOk ? 'chip-green' : lRate !== null ? 'chip-red' : ''}">L ${lRate !== null ? fmtPct(lRate) : '—'}</span>
+            <span class="chip ${fl !== null ? (fl <= tgtFL ? 'chip-green' : 'chip-red') : ''}">FL ${fl !== null ? fmtPct(fl) : '—'}</span>
+          </div>
+        </div>
+        <div class="list-item-right">
+          <div class="list-item-value">${fmtY(row.sales)}</div>
+          <div class="list-item-label" style="${profit < 0 ? 'color:var(--red)' : 'color:var(--green)'}">利益 ${fmtY(Math.round(profit))}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // 月合計速報
+  const totSales  = days.reduce((s, d) => s + (S.dailyByDate[d]?.sales  || 0), 0);
+  const totCost   = days.reduce((s, d) => s + (S.dailyByDate[d]?.cost   || 0), 0);
+  const totVarexp = days.reduce((s, d) => s + (S.dailyByDate[d]?.varexp || 0), 0);
+  const totLabor  = days.reduce((s, d) =>
+    s + (S.attendanceByDate[d] || []).reduce((a, r) => a + (r.laborCost || 0), 0), 0);
+  const totGross  = totSales - totCost;
+  const totProfit = totGross - totLabor - totVarexp - fixedExp;
+  const totFL     = totSales > 0 ? (totCost + totLabor) / totSales : null;
+  const tgtFLVal  = parseFloat(S.config['目標FL比率']) || 0.60;
+
+  document.getElementById('rv-sales').textContent = fmtY(totSales);
+  document.getElementById('rv-cost').textContent  = fmtY(totCost);
+  document.getElementById('rv-cost-rate').textContent = totSales > 0 ? fmtPct(totCost/totSales) : '—';
+  document.getElementById('rv-gross').textContent = fmtY(totGross);
+  document.getElementById('rv-gross-rate').textContent = totSales > 0 ? fmtPct(totGross/totSales) : '—';
+  document.getElementById('rv-labor').textContent = fmtY(totLabor);
+  document.getElementById('rv-labor-rate').textContent = totSales > 0 ? fmtPct(totLabor/totSales) + ' (L率)' : '— (L率)';
+  document.getElementById('rv-varexp').textContent = fmtY(totVarexp);
+  document.getElementById('rv-fixed').textContent = fmtY(fixedExp);
+  const profEl = document.getElementById('rv-profit');
+  profEl.textContent = fmtY(totProfit);
+  profEl.className = 'pl-value ' + (totProfit >= 0 ? 'v-safe' : 'v-danger');
+  document.getElementById('rv-profit-rate').textContent = totSales > 0 ? fmtPct(totProfit/totSales) : '—';
+  const flEl = document.getElementById('rv-fl');
+  flEl.textContent = totFL !== null ? fmtPct(totFL) : '—';
+  flEl.style.color = totFL !== null ? (totFL <= tgtFLVal ? 'var(--green)' : 'var(--red)') : '';
+}
+
 // ============================================================
 // INIT
 // ============================================================
 const _now = new Date();
 S.dashMonth = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0');
 S.monthlyMonth = S.dashMonth; // 月次タブも今月を初期表示
+S.reviewMonth  = S.dashMonth; // 日次確認タブも今月を初期表示
 // 日次入力を今日にデフォルト
 document.getElementById('daily-date').value =
   _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-' + String(_now.getDate()).padStart(2, '0');
