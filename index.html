@@ -300,11 +300,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
       </div>
       <!-- スタッフ別入力モード -->
-      <div class="card-body" id="labor-detail-mode" style="display:none">
-        <div id="staff-time-rows"></div>
-        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:13px;color:var(--text2)">人件費合計</span>
-          <span style="font-size:18px;font-weight:800;color:var(--primary)" id="labor-detail-total">¥0</span>
+      <div id="labor-detail-mode" style="display:none">
+        <!-- Step1: 出勤者選択 -->
+        <div class="card-body" style="border-bottom:1px solid var(--border)">
+          <div class="section-label" style="margin-bottom:10px">出勤スタッフを選択</div>
+          <div id="staff-check-rows"></div>
+        </div>
+        <!-- Step2: 時間入力（チェックした人だけ表示） -->
+        <div class="card-body" id="staff-time-section">
+          <div id="staff-time-rows"></div>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;color:var(--text2)">人件費合計</span>
+            <span style="font-size:18px;font-weight:800;color:var(--primary)" id="labor-detail-total">¥0</span>
+          </div>
         </div>
       </div>
     </div>
@@ -595,6 +603,7 @@ const S = {
   reviewMonth: '',      // YYYY-MM（日次確認タブ）
   opDaysMap: {},        // { 'YYYY-MM': 26, ... } 営業日数マスタ
   laborDetailMode: false,
+  attendingStaff: new Set(), // その日の出勤スタッフIDセット
 };
 
 // ============================================================
@@ -724,7 +733,7 @@ function renderAll() {
   renderExpList();
   renderMonthlyList();
   renderMonthlyTab();
-  buildStaffTimeRows(); // 日次入力のスタッフ行を再構築
+  if (S.laborDetailMode) buildStaffCheckRows(); // 日次入力のチェック行を再構築
 }
 
 // 営業日数を取得（設定値 → 実績入力日数 の順でフォールバック）
@@ -877,15 +886,26 @@ function loadDailyData() {
   // 削除ボタン表示
   document.getElementById('daily-del-btn').style.display = row.id ? '' : 'none';
 
-  // スタッフ別モードの時間を復元
-  if (S.laborDetailMode && attend.length > 0) {
-    attend.forEach(a => {
+  if (S.laborDetailMode) {
+    // 出勤者チェック状態を復元
+    S.attendingStaff = new Set();
+    const realAttend = attend.filter(a => a.staffId !== '__total__');
+    if (realAttend.length > 0) {
+      realAttend.forEach(a => S.attendingStaff.add(a.staffId));
+    }
+    buildStaffCheckRows();
+    buildStaffTimeRows();
+    // 時間を復元
+    realAttend.forEach(a => {
       const inp = document.getElementById('stime-' + a.staffId);
       if (inp) inp.value = a.hours || '';
     });
   } else {
-    // 合計入力モード：勤怠の合計を合計欄に表示
-    const totalLabor = attend.reduce((s, a) => s + a.laborCost, 0);
+    // 合計入力モード：__total__レコードの金額を表示
+    const totalRecord = attend.find(a => a.staffId === '__total__');
+    const totalLabor = totalRecord
+      ? totalRecord.laborCost
+      : attend.filter(a => a.staffId !== '__total__').reduce((s, a) => s + a.laborCost, 0);
     document.getElementById('d-labor-total').value = totalLabor || '';
   }
   recalcDaily();
@@ -895,22 +915,67 @@ function toggleLaborMode() {
   S.laborDetailMode = document.getElementById('labor-mode-toggle').checked;
   document.getElementById('labor-simple-mode').style.display = S.laborDetailMode ? 'none' : '';
   document.getElementById('labor-detail-mode').style.display = S.laborDetailMode ? '' : 'none';
+  if (S.laborDetailMode) buildStaffCheckRows();
   recalcDaily();
 }
 
-function buildStaffTimeRows() {
-  const container = document.getElementById('staff-time-rows');
+// 出勤者チェックボックスを構築
+function buildStaffCheckRows() {
+  const container = document.getElementById('staff-check-rows');
   if (!S.staff.length) {
-    container.innerHTML = `<div class="empty-state" style="padding:20px"><div class="es">スタッフタブで登録してください</div></div>`;
+    container.innerHTML = `<div style="font-size:13px;color:var(--text3)">スタッフタブで登録してください</div>`;
     return;
   }
   container.innerHTML = S.staff.map(st => {
     const isHourly = st['雇用形態'] !== '正社員' && st['雇用形態'] !== '契約社員';
     const wage = isHourly ? parseFloat(st['時給']) || 0 : parseFloat(st['月給']) || 0;
+    const wageLabel = isHourly ? `時給 ${fmtY(wage)}` : `月給 ${fmtY(wage)}`;
+    const checked = S.attendingStaff.has(st['ID']);
+    return `<div class="toggle-row" style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div class="toggle-label">${st['氏名']}</div>
+        <div style="font-size:12px;color:var(--text3)">${st['雇用形態']} · ${wageLabel}</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" data-staffid="${st['ID']}" ${checked ? 'checked' : ''}
+          onchange="toggleAttendance(this)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>`;
+  }).join('');
+}
+
+// 出勤チェックON/OFFで時間入力欄を更新
+function toggleAttendance(el) {
+  const staffId = el.dataset.staffid;
+  if (el.checked) {
+    S.attendingStaff.add(staffId);
+  } else {
+    S.attendingStaff.delete(staffId);
+    // 時間をリセット
+    const inp = document.getElementById('stime-' + staffId);
+    if (inp) inp.value = '';
+  }
+  buildStaffTimeRows();
+  recalcDaily();
+}
+
+function buildStaffTimeRows() {
+  const container = document.getElementById('staff-time-rows');
+  // 出勤スタッフのみ絞り込み
+  const attending = S.staff.filter(st => S.attendingStaff.has(st['ID']));
+  if (!attending.length) {
+    container.innerHTML = `<div style="font-size:13px;color:var(--text3);padding:8px 0">上のチェックで出勤スタッフを選んでください</div>`;
+    document.getElementById('labor-detail-total').textContent = '¥0';
+    return;
+  }
+  const timeUnit = parseInt(S.config['時間入力単位'] || '15');
+  const stepVal = timeUnit === 1 ? '0.0167' : timeUnit === 30 ? '0.5' : '0.25';
+  const unitLabel = timeUnit === 1 ? '1分単位' : timeUnit === 30 ? '30分単位' : '15分単位';
+  container.innerHTML = attending.map(st => {
+    const isHourly = st['雇用形態'] !== '正社員' && st['雇用形態'] !== '契約社員';
+    const wage = isHourly ? parseFloat(st['時給']) || 0 : parseFloat(st['月給']) || 0;
     const hint = isHourly ? `時給 ${fmtY(wage)}` : `月給 ${fmtY(wage)}`;
-    const timeUnit = parseInt(S.config['時間入力単位'] || '15');
-    const stepVal = timeUnit === 1 ? '0.0167' : timeUnit === 30 ? '0.5' : '0.25';
-    const unitLabel = timeUnit === 1 ? '1分単位' : timeUnit === 30 ? '30分単位' : '15分単位';
     return `<div class="staff-row-card">
       <div class="staff-row-hdr">
         <span style="font-size:13px;font-weight:700">${st['氏名']}</span>
