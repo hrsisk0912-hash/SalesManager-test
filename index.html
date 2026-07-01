@@ -464,9 +464,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           <div class="field"><label class="field-label">目標F率・原価率（%）</label><input class="input input-num" id="cfg-cost-rate" type="number" inputmode="numeric" placeholder="30"></div>
           <div class="field"><label class="field-label">目標L率・人件費率（%）</label><input class="input input-num" id="cfg-labor-rate" type="number" inputmode="numeric" placeholder="30"></div>
         </div>
-        <div class="input-row">
-          <div class="field"><label class="field-label">目標FL比率（%）</label><input class="input input-num" id="cfg-fl-rate" type="number" inputmode="numeric" placeholder="60"><div class="field-hint">F率＋L率の合計目安</div></div>
-          <div class="field"><label class="field-label">目標営業利益率（%）</label><input class="input input-num" id="cfg-profit-rate" type="number" inputmode="numeric" placeholder="15"></div>
+        <div class="field" style="margin-bottom:0">
+          <label class="field-label">目標営業利益率（%）</label>
+          <input class="input input-num" id="cfg-profit-rate" type="number" inputmode="numeric" placeholder="15">
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--surface3);border-radius:var(--radius-sm);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:var(--text2)">目標FL比率（自動）</span>
+          <span style="font-size:17px;font-weight:800;color:var(--primary)" id="cfg-fl-auto">— %</span>
         </div>
       </div>
     </div>
@@ -695,12 +699,19 @@ function applyConfig() {
   document.getElementById('cfg-store').value = S.config['店舗名'] || '';
   document.getElementById('cfg-cost-rate').value = S.config['目標原価率'] ? Math.round(parseFloat(S.config['目標原価率']) * 100) : 30;
   document.getElementById('cfg-labor-rate').value = S.config['目標L率'] ? Math.round(parseFloat(S.config['目標L率']) * 100) : 30;
-  document.getElementById('cfg-fl-rate').value = S.config['目標FL比率'] ? Math.round(parseFloat(S.config['目標FL比率']) * 100) : 60;
   document.getElementById('cfg-profit-rate').value = S.config['目標営業利益率'] ? Math.round(parseFloat(S.config['目標営業利益率']) * 100) : 15;
   document.getElementById('cfg-time-unit').value = S.config['時間入力単位'] || '15';
-  document.getElementById('kpi-fl-target').textContent = S.config['目標FL比率'] ? Math.round(parseFloat(S.config['目標FL比率']) * 100) + '%' : '60%';
+  // FL比率はF率＋L率から自動計算
+  const autoF = parseFloat(S.config['目標原価率']) || 0.30;
+  const autoL = parseFloat(S.config['目標L率']) || 0.30;
+  const autoFL = autoF + autoL;
+  const flAutoEl = document.getElementById('cfg-fl-auto');
+  if (flAutoEl) flAutoEl.textContent = Math.round(autoFL * 100) + ' %';
+  document.getElementById('kpi-fl-target').textContent = Math.round(autoFL * 100) + '%';
   const ftEl = document.getElementById('kpi-f-target');
-  if (ftEl) ftEl.textContent = S.config['目標原価率'] ? Math.round(parseFloat(S.config['目標原価率']) * 100) + '%' : '30%';
+  if (ftEl) ftEl.textContent = Math.round(autoF * 100) + '%';
+  // configのFL比率も自動値で更新（他の計算で参照するため）
+  S.config['目標FL比率'] = autoFL;
 }
 
 // ============================================================
@@ -1344,7 +1355,7 @@ async function saveSettings() {
   const store     = document.getElementById('cfg-store').value.trim();
   const costRate  = (parseFloat(document.getElementById('cfg-cost-rate').value) || 30) / 100;
   const laborRate = (parseFloat(document.getElementById('cfg-labor-rate').value) || 30) / 100;
-  const flRate    = (parseFloat(document.getElementById('cfg-fl-rate').value) || 60) / 100;
+  const flRate    = costRate + laborRate; // 自動計算
   const profRate  = (parseFloat(document.getElementById('cfg-profit-rate').value) || 15) / 100;
   const timeUnit  = document.getElementById('cfg-time-unit').value;
   setSyncing('syncing');
