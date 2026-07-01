@@ -706,9 +706,13 @@ async function loadMonthDaily(month) {
 function applyConfig() {
   if (S.config['店舗名']) document.getElementById('store-name').textContent = S.config['店舗名'];
   document.getElementById('cfg-store').value = S.config['店舗名'] || '';
-  document.getElementById('cfg-cost-rate').value = S.config['目標原価率'] ? Math.round(parseFloat(S.config['目標原価率']) * 100) : 30;
-  document.getElementById('cfg-labor-rate').value = S.config['目標L率'] ? Math.round(parseFloat(S.config['目標L率']) * 100) : 30;
-  document.getElementById('cfg-profit-rate').value = S.config['目標営業利益率'] ? Math.round(parseFloat(S.config['目標営業利益率']) * 100) : 15;
+  // スプレッドシートの値を優先。未設定の場合のみデフォルト値
+  const cfgF    = S.config['目標原価率']    !== undefined && S.config['目標原価率']    !== '' ? parseFloat(S.config['目標原価率'])    : 0.30;
+  const cfgL    = S.config['目標L率']       !== undefined && S.config['目標L率']       !== '' ? parseFloat(S.config['目標L率'])       : 0.30;
+  const cfgProf = S.config['目標営業利益率'] !== undefined && S.config['目標営業利益率'] !== '' ? parseFloat(S.config['目標営業利益率']) : 0.15;
+  document.getElementById('cfg-cost-rate').value  = Math.round(cfgF    * 100);
+  document.getElementById('cfg-labor-rate').value = Math.round(cfgL    * 100);
+  document.getElementById('cfg-profit-rate').value = Math.round(cfgProf * 100);
   document.getElementById('cfg-time-unit').value = S.config['時間入力単位'] || '15';
   // FL比率はF率＋L率から自動計算
   const autoF = parseFloat(S.config['目標原価率']) || 0.30;
@@ -719,8 +723,8 @@ function applyConfig() {
   document.getElementById('kpi-fl-target').textContent = Math.round(autoFL * 100) + '%';
   const ftEl = document.getElementById('kpi-f-target');
   if (ftEl) ftEl.textContent = Math.round(autoF * 100) + '%';
-  // configのFL比率も自動値で更新（他の計算で参照するため）
-  S.config['目標FL比率'] = autoFL;
+  // configのFL比率も自動値で更新（他の計算で参照するため・スプレッドシートには保存しない）
+  S.config['目標FL比率'] = autoFL; // メモリのみ・APIには送らない
 }
 
 // ============================================================
@@ -1425,11 +1429,15 @@ async function saveSettings() {
   const timeUnit  = document.getElementById('cfg-time-unit').value;
   setSyncing('syncing');
   try {
+    // 目標FL比率はF率＋L率から自動計算するため保存しない
     await apiPost({ action: 'saveConfig', data: {
       '店舗名': store, '目標原価率': costRate, '目標L率': laborRate,
-      '目標FL比率': flRate, '目標営業利益率': profRate, '時間入力単位': timeUnit
+      '目標営業利益率': profRate, '時間入力単位': timeUnit
     }});
-    Object.assign(S.config, { '店舗名': store, '目標FL比率': flRate, '目標L率': laborRate, '時間入力単位': timeUnit });
+    Object.assign(S.config, {
+      '店舗名': store, '目標原価率': costRate, '目標L率': laborRate,
+      '目標営業利益率': profRate, '時間入力単位': timeUnit
+    });
     if (store) document.getElementById('store-name').textContent = store;
     setSyncing('ok'); showToast('✅ 設定を保存しました'); applyConfig(); renderDash();
     buildStaffTimeRows(); // 時間単位が変わったら再構築
