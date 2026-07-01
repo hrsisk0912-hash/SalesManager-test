@@ -319,16 +319,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
     <!-- 変動販管費 -->
     <div class="card">
-      <div class="card-header"><div class="card-title">📦 変動販管費</div><span style="font-size:11px;color:var(--text3)">消耗品など</span></div>
-      <div class="card-body">
-        <div class="field">
-          <label class="field-label">変動費合計（当日）</label>
-          <input class="input input-num" id="d-varexp" type="number" inputmode="numeric" placeholder="0" oninput="recalcDaily()">
+      <div class="card-header">
+        <div class="card-title">📦 変動販管費</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;color:var(--text3)">合計</span>
+          <span style="font-size:15px;font-weight:800;color:var(--primary)" id="varexp-daily-total">¥0</span>
         </div>
-        <div class="field" style="margin-bottom:0">
-          <label class="field-label">メモ</label>
-          <input class="input" id="d-varexp-memo" type="text" placeholder="例：消耗品、クリーニング代など">
-        </div>
+      </div>
+      <div class="card-body" style="padding-bottom:8px">
+        <div id="varexp-daily-rows"></div>
+        <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px" onclick="addVarExpRow()">＋ 変動費を追加</button>
       </div>
     </div>
 
@@ -340,7 +340,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="pl-row"><span class="pl-label pl-indent">仕入原価</span><div><div class="pl-value" id="dp-cost">—</div><div class="pl-rate" id="dp-cost-rate">— %</div></div></div>
         <div class="pl-row pl-subtotal"><span class="pl-label">粗利益</span><div><div class="pl-value" id="dp-gross">—</div><div class="pl-rate" id="dp-gross-rate">— %</div></div></div>
         <div class="pl-row"><span class="pl-label pl-indent">人件費</span><div><div class="pl-value" id="dp-labor">—</div><div class="pl-rate" id="dp-labor-rate">— %</div></div></div>
-        <div class="pl-row"><span class="pl-label pl-indent">変動販管費</span><div><div class="pl-value" id="dp-varexp">—</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">変動費（日次）</span><div><div class="pl-value" id="dp-varexp">—</div></div></div>
+        <div class="pl-row"><span class="pl-label pl-indent">変動費（月次）</span><div><div class="pl-value" id="dp-varexp-monthly">—</div><div class="pl-rate" style="font-size:11px;color:var(--text3)" id="dp-varexp-monthly-hint"></div></div></div>
         <div class="pl-row"><span class="pl-label pl-indent">固定費（日割）</span><div><div class="pl-value" id="dp-fixed">—</div><div class="pl-rate" id="dp-fixed-hint" style="font-size:11px;color:var(--text3)"></div></div></div>
         <div class="pl-row pl-total"><span class="pl-label">営業利益</span><div><div class="pl-value" id="dp-profit">—</div><div class="pl-rate" id="dp-profit-rate">— %</div></div></div>
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
@@ -366,16 +367,60 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
   </div>
 
-  <!-- ===== 販管費（固定費） ===== -->
+  <!-- ===== 販管費 ===== -->
   <div id="tab-exp" class="tab-panel">
-    <div class="page-title">💰 固定費マスタ</div>
-    <div class="page-sub">毎月かかる固定費を登録</div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">固定費一覧 <span class="badge" id="exp-count">0件</span></div>
-        <div class="summary-value sv-blue" id="exp-total" style="font-size:15px">¥—</div>
+    <div class="page-title">💰 販管費マスタ</div>
+    <div class="page-sub">固定費・変動費を登録</div>
+
+    <!-- セグメント切り替え -->
+    <div class="segment" id="exp-segment">
+      <button class="seg-btn active" onclick="switchExpTab('fixed',this)">固定費</button>
+      <button class="seg-btn" onclick="switchExpTab('monthly',this)">変動費・月次</button>
+      <button class="seg-btn" onclick="switchExpTab('daily',this)">変動費・日次</button>
+    </div>
+
+    <!-- 固定費 -->
+    <div id="exp-fixed-section">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">固定費一覧 <span class="badge" id="exp-count">0件</span></div>
+          <div class="summary-value sv-blue" id="exp-total" style="font-size:15px">¥—</div>
+        </div>
+        <div id="exp-list"></div>
       </div>
-      <div id="exp-list"></div>
+    </div>
+
+    <!-- 変動費（月次） -->
+    <div id="exp-monthly-section" style="display:none">
+      <div class="month-nav" style="margin-bottom:12px">
+        <button class="month-btn" onclick="shiftVarExpMonth(-1)">‹</button>
+        <div class="month-label" id="varexp-month-label">— 年 — 月</div>
+        <button class="month-btn" onclick="shiftVarExpMonth(1)">›</button>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">変動費（月次） <span class="badge" id="varexp-count">0件</span></div>
+          <div class="summary-value sv-blue" id="varexp-total" style="font-size:15px">¥—</div>
+        </div>
+        <div id="varexp-list"></div>
+      </div>
+    </div>
+
+    <!-- 変動費（日次）一覧 -->
+    <div id="exp-daily-section" style="display:none">
+      <div class="month-nav" style="margin-bottom:12px">
+        <button class="month-btn" onclick="shiftVarExpDailyMonth(-1)">‹</button>
+        <div class="month-label" id="varexp-daily-month-label">— 年 — 月</div>
+        <button class="month-btn" onclick="shiftVarExpDailyMonth(1)">›</button>
+      </div>
+      <!-- カテゴリ別サマリー -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">日次変動費 <span class="badge" id="varexp-daily-count">0件</span></div>
+          <div class="summary-value sv-blue" id="varexp-daily-section-total" style="font-size:15px">¥—</div>
+        </div>
+        <div id="varexp-daily-list"></div>
+      </div>
     </div>
   </div>
 
@@ -469,12 +514,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="card-header"><div class="card-title">目標値</div></div>
       <div class="card-body">
         <div class="input-row">
-          <div class="field"><label class="field-label">目標F率・原価率（%）</label><input class="input input-num" id="cfg-cost-rate" type="number" inputmode="numeric" placeholder="30"></div>
-          <div class="field"><label class="field-label">目標L率・人件費率（%）</label><input class="input input-num" id="cfg-labor-rate" type="number" inputmode="numeric" placeholder="30"></div>
+          <div class="field"><label class="field-label">目標F率・原価率（%）</label><input class="input input-num" id="cfg-cost-rate" type="number" inputmode="decimal" placeholder="27.5" step="0.1"></div>
+          <div class="field"><label class="field-label">目標L率・人件費率（%）</label><input class="input input-num" id="cfg-labor-rate" type="number" inputmode="decimal" placeholder="27.5" step="0.1"></div>
         </div>
         <div class="field" style="margin-bottom:0">
           <label class="field-label">目標営業利益率（%）</label>
-          <input class="input input-num" id="cfg-profit-rate" type="number" inputmode="numeric" placeholder="15">
+          <input class="input input-num" id="cfg-profit-rate" type="number" inputmode="decimal" placeholder="15.0" step="0.1">
         </div>
         <div style="margin-top:12px;padding:10px 14px;background:var(--surface3);border-radius:var(--radius-sm);display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:13px;color:var(--text2)">目標FL比率（自動）</span>
@@ -515,6 +560,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   <button class="nav-item" onclick="switchTab('daily',this)"><span class="nav-icon">✏️</span>入力</button>
   <button class="nav-item" onclick="switchTab('review',this)"><span class="nav-icon">📋</span>確認</button>
   <button class="nav-item" onclick="switchTab('staff',this)"><span class="nav-icon">👥</span>スタッフ</button>
+  <button class="nav-item" onclick="switchTab('exp',this)"><span class="nav-icon">💰</span>販管費</button>
   <button class="nav-item" onclick="switchTab('monthly',this)"><span class="nav-icon">📊</span>月次</button>
   <button class="nav-item" onclick="switchTab('settings',this)"><span class="nav-icon">⚙</span>設定</button>
 </nav>
@@ -563,11 +609,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <label class="field-label">カテゴリ</label>
         <select class="select" id="e-cat">
           <option value="地代家賃">地代家賃</option>
-          <option value="水道光熱費">水道光熱費</option>
-          <option value="通信費">通信費</option>
           <option value="リース料">リース料</option>
+          <option value="通信費">通信費</option>
           <option value="広告宣伝費">広告宣伝費</option>
-          <option value="その他">その他</option>
+          <option value="その他固定費">その他固定費</option>
         </select>
       </div>
       <div class="field" style="margin-bottom:0"><label class="field-label">月額（円）<span class="req">*</span></label><input class="input input-num" id="e-amount" type="number" inputmode="numeric" placeholder="0"></div>
@@ -576,6 +621,36 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="modal-footer">
       <button class="btn btn-primary" id="e-save-btn" onclick="saveExpense()">保存する</button>
       <button class="btn btn-danger btn-sm" id="e-del-btn" onclick="deleteExpense()" style="display:none">この費目を削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: 変動費（月次） ===== -->
+<div class="modal-overlay" id="varexp-modal" onclick="closeModal('varexp-modal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-title" id="varexp-modal-title">変動費を追加</div><button class="btn btn-ghost btn-sm" onclick="closeModal('varexp-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">費目名<span class="req">*</span></label><input class="input" id="ve-name" type="text" placeholder="例：水道光熱費"></div>
+      <div class="field">
+        <label class="field-label">カテゴリ</label>
+        <select class="select" id="ve-cat">
+          <option value="水道光熱費">水道光熱費</option>
+          <option value="支払手数料">支払手数料</option>
+          <option value="消耗品費">消耗品費</option>
+          <option value="衛生費">衛生費</option>
+          <option value="販促費">販促費</option>
+          <option value="修繕費">修繕費</option>
+          <option value="その他変動費">その他変動費</option>
+        </select>
+      </div>
+      <div class="field"><label class="field-label">対象年月</label><input class="input" id="ve-month" type="month"></div>
+      <div class="field" style="margin-bottom:0"><label class="field-label">金額（円）<span class="req">*</span></label><input class="input input-num" id="ve-amount" type="number" inputmode="numeric" placeholder="0"></div>
+      <div class="field" style="margin-top:14px;margin-bottom:0"><label class="field-label">メモ</label><input class="input" id="ve-memo" type="text" placeholder="任意"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="ve-save-btn" onclick="saveVarExp()">保存する</button>
+      <button class="btn btn-danger btn-sm" id="ve-del-btn" onclick="deleteVarExp()" style="display:none">この費目を削除</button>
     </div>
   </div>
 </div>
@@ -601,6 +676,13 @@ const S = {
   dashMonth: '',        // YYYY-MM
   monthlyMonth: '',     // YYYY-MM（月次タブ）
   reviewMonth: '',      // YYYY-MM（日次確認タブ）
+  varExpMonth: '',      // YYYY-MM（変動費月次タブ）
+  varExpData: [],       // 変動費（月次）データ
+  currentVarExpId: null,
+  currentExpTab: 'fixed',
+  varExpDailyMonth: '', // 販管費タブ・日次変動費の表示月
+  varExpDailyData: [],  // 日次変動費データ（販管費マスタ・日次）
+  dailyVarExpRows: [],  // 日次入力中の変動費行（未保存）
   opDaysMap: {},        // { 'YYYY-MM': 26, ... } 営業日数マスタ
   laborDetailMode: false,
   attendingStaff: new Set(), // その日の出勤スタッフIDセット
@@ -650,6 +732,8 @@ async function loadAll() {
 
     // 今月の日次データを取得
     await loadMonthDaily(S.dashMonth);
+    await loadVarExpData();
+    await loadVarExpDailyData();
 
     setSyncing('ok');
     renderAll();
@@ -719,8 +803,8 @@ function applyConfig() {
   const autoL = parseFloat(S.config['目標L率']) || 0.30;
   const autoFL = autoF + autoL;
   const flAutoEl = document.getElementById('cfg-fl-auto');
-  if (flAutoEl) flAutoEl.textContent = Math.round(autoFL * 100) + ' %';
-  document.getElementById('kpi-fl-target').textContent = Math.round(autoFL * 100) + '%';
+  if (flAutoEl) flAutoEl.textContent = (autoFL * 100).toFixed(1) + ' %';
+  document.getElementById('kpi-fl-target').textContent = (autoFL * 100).toFixed(1) + '%';
   const ftEl = document.getElementById('kpi-f-target');
   if (ftEl) ftEl.textContent = Math.round(autoF * 100) + '%';
   // configのFL比率も自動値で更新（他の計算で参照するため・スプレッドシートには保存しない）
@@ -766,7 +850,11 @@ function renderDash() {
   const days = Object.keys(S.dailyByDate).filter(d => d.startsWith(S.dashMonth)).sort();
   const sales   = days.reduce((s, d) => s + (S.dailyByDate[d]?.sales  || 0), 0);
   const cost    = days.reduce((s, d) => s + (S.dailyByDate[d]?.cost   || 0), 0);
-  const varexp  = days.reduce((s, d) => s + (S.dailyByDate[d]?.varexp || 0), 0);
+  const varexpDaily  = days.reduce((s, d) => s + (S.dailyByDate[d]?.varexp || 0), 0);
+  const varexpMonthly = S.varExpData
+    .filter(v => String(v['\u5e74\u6708']) === S.dashMonth)
+    .reduce((s, v) => s + (parseFloat(v['\u91d1\u984d']) || 0), 0);
+  const varexp = varexpDaily + varexpMonthly;
   const labor   = days.reduce((s, d) => {
     const rows = S.attendanceByDate[d] || [];
     return s + rows.reduce((a, r) => a + (r.laborCost || 0), 0);
@@ -912,6 +1000,8 @@ function loadDailyData() {
       : attend.filter(a => a.staffId !== '__total__').reduce((s, a) => s + a.laborCost, 0);
     document.getElementById('d-labor-total').value = totalLabor || '';
   }
+  // 変動費行を復元
+  loadVarExpDailyRows(date);
   recalcDaily();
 }
 
@@ -1005,7 +1095,11 @@ function buildStaffTimeRows() {
 function recalcDaily() {
   const sales  = parseFloat(document.getElementById('d-sales').value) || 0;
   const cost   = parseFloat(document.getElementById('d-cost').value) || 0;
-  const varexp = parseFloat(document.getElementById('d-varexp').value) || 0;
+  const varexp = S.dailyVarExpRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+  // 月次変動費（販管費マスタ）
+  const varexpMonthlyAmt = S.varExpData
+    .filter(v => String(v['年月']) === S.dashMonth)
+    .reduce((s, v) => s + (parseFloat(v['金額']) || 0), 0);
 
   // 人件費計算
   let labor = 0;
@@ -1049,6 +1143,11 @@ function recalcDaily() {
   setPlPreview('dp-gross', gross, sales > 0 ? gross / sales : null, gross >= 0 ? 'v-safe' : 'v-danger');
   setPlPreview('dp-labor', labor, sales > 0 ? labor / sales : null);
   setPlPreview('dp-varexp', varexp, null);
+  // 月次変動費の表示
+  const dvmEl = document.getElementById('dp-varexp-monthly');
+  const dvmHint = document.getElementById('dp-varexp-monthly-hint');
+  if (dvmEl) dvmEl.textContent = varexpMonthlyAmt > 0 ? fmtY(varexpMonthlyAmt) : '¥0';
+  if (dvmHint) dvmHint.textContent = varexpMonthlyAmt > 0 ? '月次変動費（販管費タブで管理）' : '';
   document.getElementById('dp-fixed').textContent = fixedDaily > 0 ? fmtY(Math.round(fixedDaily)) : '—';
   document.getElementById('dp-fixed-hint').textContent = opDaysSet
     ? `月${fmtY(fixedExp)} ÷ ${opDays}日`
@@ -1075,21 +1174,26 @@ async function saveDaily() {
   if (!date) { showToast('❌ 対象日を選択してください'); return; }
   const sales  = parseFloat(document.getElementById('d-sales').value) || 0;
   const cost   = parseFloat(document.getElementById('d-cost').value) || 0;
-  const varexp = parseFloat(document.getElementById('d-varexp').value) || 0;
+  const varexp = S.dailyVarExpRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+  // 月次変動費（販管費マスタ）
+  const varexpMonthlyAmt = S.varExpData
+    .filter(v => String(v['年月']) === S.dashMonth)
+    .reduce((s, v) => s + (parseFloat(v['金額']) || 0), 0);
   const memo   = document.getElementById('d-varexp-memo').value.trim();
   const existingId = S.dailyByDate[date]?.id || '';
 
   setSyncing('syncing');
   document.getElementById('daily-save-btn').disabled = true;
   try {
-    // 日次実績を保存
+    const varexpTotal = S.dailyVarExpRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    // 日次実績を保存（変動費合計のみ記録、明細は販管費マスタ・日次に別途保存）
     const res = await apiPost({ action: 'saveDaily', data: {
       'ID': existingId,
       '日付': date,
       '売上（税抜）': sales,
       '仕入原価': cost,
-      '変動販管費': varexp,
-      '変動費メモ': memo,
+      '変動販管費': varexpTotal,
+      '変動費メモ': '',
     }});
     if (res.error) throw new Error(res.error);
 
@@ -1128,6 +1232,22 @@ async function saveDaily() {
           hours: 0, laborCost: totalLabor,
         }]});
         if (r2.error) throw new Error(r2.error);
+      }
+    }
+
+    // 日次変動費明細を保存
+    if (S.dailyVarExpRows.length > 0) {
+      const validRows = S.dailyVarExpRows.filter(r => r.name || r.amount);
+      if (validRows.length > 0) {
+        const r3 = await apiPost({ action: 'saveVarExpDaily', records: validRows.map(r => ({
+          id: r.id || '',
+          date,
+          cat: r.cat,
+          name: r.name,
+          amount: parseFloat(r.amount) || 0,
+        }))});
+        if (r3.error) throw new Error(r3.error);
+        await loadVarExpDailyData();
       }
     }
 
@@ -1292,6 +1412,223 @@ async function aggregateManualMonthly() {
     renderMonthlyTab();
   } catch(e) { setSyncing('error'); showToast('⚠ 集計に失敗しました'); }
 }
+
+
+// ============================================================
+// 販管費タブ（固定費 / 変動費切り替え）
+// ============================================================
+function switchExpTab(tab, el) {
+  S.currentExpTab = tab;
+  document.querySelectorAll('#exp-segment .seg-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.getElementById('exp-fixed-section').style.display   = tab === 'fixed'   ? '' : 'none';
+  document.getElementById('exp-monthly-section').style.display = tab === 'monthly' ? '' : 'none';
+  document.getElementById('exp-daily-section').style.display   = tab === 'daily'   ? '' : 'none';
+  // 日次タブはFABを隠す（日次入力から追加するため）
+  document.getElementById('fab').className = 'fab' + (tab === 'daily' ? ' hidden' : '');
+  if (tab === 'monthly') renderVarExpList();
+  if (tab === 'daily')   renderVarExpDailyList();
+}
+
+function shiftVarExpMonth(delta) {
+  const [y, m] = S.varExpMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  S.varExpMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  document.getElementById('varexp-month-label').textContent = S.varExpMonth.replace('-', '\u5e74') + '\u6708';
+  renderVarExpList();
+}
+
+function renderVarExpList() {
+  document.getElementById('varexp-month-label').textContent = S.varExpMonth.replace('-', '\u5e74') + '\u6708';
+  const monthData = S.varExpData.filter(v => String(v['\u5e74\u6708']) === S.varExpMonth);
+  const total = monthData.reduce((s, v) => s + (parseFloat(v['\u91d1\u984d']) || 0), 0);
+  document.getElementById('varexp-count').textContent = monthData.length + '\u4ef6';
+  document.getElementById('varexp-total').textContent = fmtY(total);
+  const el = document.getElementById('varexp-list');
+  if (!monthData.length) {
+    el.innerHTML = emptyHTML('\ud83d\udce6', '\u3053\u306e\u6708\u306e\u5909\u52d5\u8cbb\u30c7\u30fc\u30bf\u304c\u3042\u308a\u307e\u305b\u3093', '\u53f3\u4e0b\u306e \uff0b \u3067\u8ffd\u52a0');
+    return;
+  }
+  el.innerHTML = monthData.map(v => '<div class="list-item" onclick="editVarExp(\'' + v['ID'] + '\')">'
+    + '<div class="list-item-main">'
+    + '<div class="list-item-name">' + v['\u8cbb\u76ee\u540d'] + '</div>'
+    + '<div class="list-item-sub">' + v['\u30ab\u30c6\u30b4\u30ea'] + (v['\u30e1\u30e2'] ? ' \u00b7 ' + v['\u30e1\u30e2'] : '') + '</div>'
+    + '</div>'
+    + '<div class="list-item-right"><div class="list-item-value">' + fmtY(parseFloat(v['\u91d1\u984d']) || 0) + '</div></div>'
+    + '</div>').join('');
+}
+
+function openVarExpModal(id) {
+  S.currentVarExpId = id;
+  const isEdit = id !== null;
+  const v = isEdit ? S.varExpData.find(x => x['ID'] === id) : null;
+  document.getElementById('varexp-modal-title').textContent = isEdit ? '\u5909\u52d5\u8cbb\u3092\u7de8\u96c6' : '\u5909\u52d5\u8cbb\u3092\u8ffd\u52a0';
+  document.getElementById('ve-name').value   = v ? v['\u8cbb\u76ee\u540d'] : '';
+  document.getElementById('ve-cat').value    = v ? v['\u30ab\u30c6\u30b4\u30ea'] : '\u6c34\u9053\u5149\u71b1\u8cbb';
+  document.getElementById('ve-month').value  = v ? v['\u5e74\u6708'] : S.varExpMonth;
+  document.getElementById('ve-amount').value = v ? v['\u91d1\u984d'] : '';
+  document.getElementById('ve-memo').value   = v ? v['\u30e1\u30e2'] : '';
+  document.getElementById('ve-del-btn').style.display = isEdit ? '' : 'none';
+  document.getElementById('varexp-modal').classList.add('open');
+}
+function editVarExp(id) { openVarExpModal(id); }
+
+async function saveVarExp() {
+  const name   = document.getElementById('ve-name').value.trim();
+  const amount = parseFloat(document.getElementById('ve-amount').value) || 0;
+  const month  = document.getElementById('ve-month').value;
+  if (!name)  { showToast('\u274c \u8cbb\u76ee\u540d\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044'); return; }
+  if (!month) { showToast('\u274c \u5bfe\u8c61\u5e74\u6708\u3092\u9078\u629e\u3057\u3066\u304f\u3060\u3055\u3044'); return; }
+  const id = S.currentVarExpId || genId();
+  document.getElementById('ve-save-btn').disabled = true;
+  setSyncing('syncing');
+  try {
+    const res = await apiPost({ action: 'saveVarExp', data: {
+      'ID': id, '\u8cbb\u76ee\u540d': name, '\u30ab\u30c6\u30b4\u30ea': document.getElementById('ve-cat').value,
+      '\u5e74\u6708': month, '\u91d1\u984d': amount, '\u30e1\u30e2': document.getElementById('ve-memo').value.trim()
+    }});
+    if (res.error) throw new Error(res.error);
+    setSyncing('ok'); closeModal('varexp-modal'); showToast('\u2705 \u4fdd\u5b58\u3057\u307e\u3057\u305f');
+    await loadVarExpData();
+    await loadVarExpDailyData();
+    renderVarExpList();
+  } catch(e) { setSyncing('error'); showToast('\u26a0 \u4fdd\u5b58\u306b\u5931\u6557\u3057\u307e\u3057\u305f'); }
+  finally { document.getElementById('ve-save-btn').disabled = false; }
+}
+
+async function deleteVarExp() {
+  if (!confirm('\u3053\u306e\u5909\u52d5\u8cbb\u3092\u524a\u9664\u3057\u307e\u3059\u304b\uff1f')) return;
+  setSyncing('syncing');
+  try {
+    await apiPost({ action: 'deleteVarExp', id: S.currentVarExpId });
+    setSyncing('ok'); closeModal('varexp-modal'); showToast('\ud83d\uddd1 \u524a\u9664\u3057\u307e\u3057\u305f');
+    await loadVarExpData();
+    await loadVarExpDailyData();
+    renderVarExpList();
+  } catch(e) { setSyncing('error'); showToast('\u26a0 \u524a\u9664\u306b\u5931\u6557\u3057\u307e\u3057\u305f'); }
+}
+
+async function loadVarExpData() {
+  const res = await apiGet({ action: 'getVarExp' });
+  S.varExpData = res.varExp || [];
+}
+
+// ============================================================
+// 日次変動費（日次入力タブ）
+// ============================================================
+const VAREXP_CATS = [
+  '消耗品費', '水道光熱費', '接待交際費', '研修費',
+  '支払手数料', '広告宣伝費', '修繕費', 'その他変動費'
+];
+
+function addVarExpRow(prefill) {
+  const row = prefill || { id: '', cat: '消耗品費', name: '', amount: '' };
+  S.dailyVarExpRows.push(row);
+  renderVarExpDailyRows();
+}
+
+function removeVarExpRow(idx) {
+  S.dailyVarExpRows.splice(idx, 1);
+  renderVarExpDailyRows();
+  recalcDaily();
+}
+
+function renderVarExpDailyRows() {
+  const container = document.getElementById('varexp-daily-rows');
+  if (!S.dailyVarExpRows.length) {
+    container.innerHTML = '';
+    document.getElementById('varexp-daily-total').textContent = '¥0';
+    return;
+  }
+  container.innerHTML = S.dailyVarExpRows.map((row, i) =>
+    `<div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center;margin-bottom:8px">
+      <select class="select" style="min-height:40px;font-size:13px;padding:8px 28px 8px 10px"
+        onchange="S.dailyVarExpRows[${i}].cat=this.value">
+        ${VAREXP_CATS.map(c => `<option value="${c}" ${row.cat===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <input class="input" style="min-height:40px;font-size:13px" type="text" placeholder="費目名"
+        value="${row.name||''}"
+        oninput="S.dailyVarExpRows[${i}].name=this.value">
+      <input class="input input-num" style="min-height:40px;font-size:13px;width:90px" type="number"
+        inputmode="numeric" placeholder="0" value="${row.amount||''}"
+        oninput="S.dailyVarExpRows[${i}].amount=this.value;recalcDaily()">
+      <button class="btn btn-icon" style="background:rgba(255,59,48,.15);color:var(--red);font-size:18px;flex-shrink:0"
+        onclick="removeVarExpRow(${i})">✕</button>
+    </div>`
+  ).join('');
+  // 合計更新
+  const total = S.dailyVarExpRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+  document.getElementById('varexp-daily-total').textContent = fmtY(total);
+}
+
+// 日次入力のloadDailyDataで変動費行を復元（販管費マスタ・日次から）
+function loadVarExpDailyRows(date) {
+  const rows = S.varExpDailyData.filter(v => String(v['日付']) === date);
+  S.dailyVarExpRows = rows.map(v => ({
+    id: v['ID'],
+    cat: v['カテゴリ'] || '消耗品費',
+    name: v['費目名'] || '',
+    amount: parseFloat(v['金額']) || ''
+  }));
+  renderVarExpDailyRows();
+}
+
+// ============================================================
+// 販管費タブ > 変動費（日次）一覧
+// ============================================================
+async function loadVarExpDailyData() {
+  const res = await apiGet({ action: 'getVarExpDaily' });
+  S.varExpDailyData = res.varExpDaily || [];
+}
+
+function shiftVarExpDailyMonth(delta) {
+  const [y, m] = S.varExpDailyMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  S.varExpDailyMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  renderVarExpDailyList();
+}
+
+function renderVarExpDailyList() {
+  document.getElementById('varexp-daily-month-label').textContent =
+    S.varExpDailyMonth.replace('-', '年') + '月';
+  const monthData = S.varExpDailyData
+    .filter(v => String(v['日付']).startsWith(S.varExpDailyMonth))
+    .sort((a, b) => String(b['日付']).localeCompare(String(a['日付'])));
+  const total = monthData.reduce((s, v) => s + (parseFloat(v['金額']) || 0), 0);
+  document.getElementById('varexp-daily-count').textContent = monthData.length + '件';
+  document.getElementById('varexp-daily-section-total').textContent = fmtY(total);
+  const el = document.getElementById('varexp-daily-list');
+  if (!monthData.length) {
+    el.innerHTML = emptyHTML('📦', 'この月の日次変動費はありません', '日次入力タブから入力してください');
+    return;
+  }
+  // 日付でグループ化
+  const byDate = {};
+  monthData.forEach(v => {
+    const d = String(v['日付']).slice(0, 10);
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(v);
+  });
+  el.innerHTML = Object.entries(byDate).map(([date, rows]) => {
+    const dayTotal = rows.reduce((s, r) => s + (parseFloat(r['金額']) || 0), 0);
+    return `<div style="border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;padding:10px 16px;background:var(--surface2)">
+        <span style="font-size:13px;font-weight:700">${fmtDate(date)}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--primary)">${fmtY(dayTotal)}</span>
+      </div>
+      ${rows.map(v => `<div class="list-item" style="padding:8px 16px 8px 24px" onclick="openDailyForDate('${date}')">
+        <div class="list-item-main">
+          <div class="list-item-name" style="font-size:13px">${v['費目名'] || v['カテゴリ']}</div>
+          <div class="list-item-sub">${v['カテゴリ']}</div>
+        </div>
+        <div class="list-item-right">
+          <div class="list-item-value" style="font-size:14px">${fmtY(parseFloat(v['金額']) || 0)}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
 
 // ============================================================
 // 月次一覧（過去月）
@@ -1464,13 +1801,17 @@ function switchTab(name, el) {
   if (el) el.classList.add('active');
   S.currentTab = name;
   const fabHide = ['dash', 'daily', 'review', 'monthly', 'settings'];
+  // expタブはswitchExpTabでFABを制御するため個別処理
   document.getElementById('fab').className = 'fab' + (fabHide.includes(name) ? ' hidden' : '');
   if (name === 'review') renderReviewTab();
 }
 function openAddModal() {
   const t = S.currentTab;
   if (t === 'staff') openStaffModal(null);
-  else if (t === 'exp') openExpModal(null);
+  else if (t === 'exp') {
+    if (S.currentExpTab === 'variable') openVarExpModal(null);
+    else openExpModal(null);
+  }
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -1600,6 +1941,8 @@ const _now = new Date();
 S.dashMonth = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0');
 S.monthlyMonth = S.dashMonth; // 月次タブも今月を初期表示
 S.reviewMonth  = S.dashMonth; // 日次確認タブも今月を初期表示
+S.varExpMonth      = S.dashMonth;
+S.varExpDailyMonth = S.dashMonth;
 // 日次入力を今日にデフォルト
 document.getElementById('daily-date').value =
   _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-' + String(_now.getDate()).padStart(2, '0');
