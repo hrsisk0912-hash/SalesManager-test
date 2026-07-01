@@ -589,7 +589,24 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div id="s-monthly-field" style="display:none">
         <div class="field" style="margin-bottom:0"><label class="field-label">月給（円）<span class="req">*</span></label><input class="input input-num" id="s-monthly" type="number" inputmode="numeric" placeholder="250000"></div>
       </div>
-      <div class="field" style="margin-top:14px;margin-bottom:0"><label class="field-label">備考</label><input class="input" id="s-note" type="text" placeholder="任意"></div>
+      <div class="field" style="margin-top:14px">
+        <label class="field-label">交通費タイプ</label>
+        <select class="select" id="s-transport-type" onchange="syncTransportType()">
+          <option value="daily">日払い（出勤日 × 設定金額）</option>
+          <option value="monthly">定期代（月額固定）</option>
+        </select>
+      </div>
+      <div class="field" id="s-transport-daily-field">
+        <label class="field-label">交通費（円/日）</label>
+        <input class="input input-num" id="s-transport" type="number" inputmode="numeric" placeholder="0">
+        <div class="field-hint">出勤した日に自動加算されます</div>
+      </div>
+      <div class="field" id="s-transport-monthly-field" style="display:none">
+        <label class="field-label">定期代（円/月）</label>
+        <input class="input input-num" id="s-transport-monthly-amt" type="number" inputmode="numeric" placeholder="0">
+        <div class="field-hint">出勤日数に関わらず月額固定で計上されます</div>
+      </div>
+      <div class="field" style="margin-bottom:0"><label class="field-label">備考</label><input class="input" id="s-note" type="text" placeholder="任意"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" id="s-save-btn" onclick="saveStaff()">保存する</button>
@@ -1023,12 +1040,18 @@ function buildStaffCheckRows() {
   container.innerHTML = S.staff.map(st => {
     const isHourly = st['雇用形態'] !== '正社員' && st['雇用形態'] !== '契約社員';
     const wage = isHourly ? parseFloat(st['時給']) || 0 : parseFloat(st['月給']) || 0;
+    const transport = parseFloat(st['交通費']) || 0;
     const wageLabel = isHourly ? `時給 ${fmtY(wage)}` : `月給 ${fmtY(wage)}`;
+    const transportType = st['交通費タイプ'] || 'daily';
+    const transportMonthly = parseFloat(st['定期代']) || 0;
+    const transportLabel = transportType === 'monthly' && transportMonthly > 0
+      ? ` · 定期代 ${fmtY(transportMonthly)}/月`
+      : transport > 0 ? ` · 交通費 ${fmtY(transport)}/日` : '';
     const checked = S.attendingStaff.has(st['ID']);
     return `<div class="toggle-row" style="padding:10px 0;border-bottom:1px solid var(--border)">
       <div>
         <div class="toggle-label">${st['氏名']}</div>
-        <div style="font-size:12px;color:var(--text3)">${st['雇用形態']} · ${wageLabel}</div>
+        <div style="font-size:12px;color:var(--text3)">${st['雇用形態']} · ${wageLabel}${transportLabel}</div>
       </div>
       <label class="toggle">
         <input type="checkbox" data-staffid="${st['ID']}" ${checked ? 'checked' : ''}
@@ -1111,12 +1134,24 @@ function recalcDaily() {
       const isHourly = inp.dataset.isHourly === '1';
       const wage = parseFloat(inp.dataset.wage) || 0;
       let lc = 0;
+      const tType = st['交通費タイプ'] || 'daily';
+      const tDaily = tType === 'daily' ? (parseFloat(st['交通費']) || 0) : 0;
+      const tMonthlyAmt = tType === 'monthly' ? (parseFloat(st['定期代']) || 0) : 0;
+      const settingOpDays = getOpDays(S.dashMonth);
+      // 定期代：当月の初出勤日に全額計上（2回目以降は0円）
+      let tMonthlyForDay = 0;
+      if (tMonthlyAmt > 0) {
+        const currentDate = document.getElementById('daily-date').value;
+        const existingDays = Object.keys(S.attendanceByDate)
+          .filter(d => d.startsWith(S.dashMonth) && d < currentDate
+            && (S.attendanceByDate[d] || []).some(a => a.staffId === st['ID']));
+        tMonthlyForDay = existingDays.length === 0 ? tMonthlyAmt : 0;
+      }
+      const transportForDay = tDaily + tMonthlyForDay;
       if (isHourly) {
-        lc = hours * wage;
+        lc = hours * wage + transportForDay;
       } else {
-        // 月給の場合：月給÷設定営業日数で日割り（時間に関係なく1日分を計上）
-        const settingOpDays = getOpDays(S.dashMonth);
-        lc = wage / settingOpDays;
+        lc = wage / settingOpDays + transportForDay;
       }
       labor += lc;
       const ce = document.getElementById('scost-' + st['ID']);
@@ -1204,12 +1239,25 @@ async function saveDaily() {
         const inp = document.getElementById('stime-' + st['ID']);
         if (!inp) return;
         const hours = parseFloat(inp.value) || 0;
-        if (hours <= 0) return;
+        if (hours <= 0 && st['交通費タイプ'] !== 'daily' && !st['定期代']) return;
         const isHourly = inp.dataset.isHourly === '1';
         const wage = parseFloat(inp.dataset.wage) || 0;
-        // 月給社員：月給÷設定営業日数で日割り（時間入力は無視して1日分を計上）
         const settingOpDays = getOpDays(S.dashMonth);
-        const lc = isHourly ? hours * wage : (wage / settingOpDays);
+        const sTType = st['交通費タイプ'] || 'daily';
+        const sTDaily = sTType === 'daily' ? (parseFloat(st['交通費']) || 0) : 0;
+        const sTMonthlyAmt = sTType === 'monthly' ? (parseFloat(st['定期代']) || 0) : 0;
+        // 定期代：当月の初出勤日に全額計上（既存勤怠レコードがあれば2回目以降=0円）
+        let sTMonthlyForDay = 0;
+        if (sTMonthlyAmt > 0) {
+          const existingDaysForStaff = Object.keys(S.attendanceByDate)
+            .filter(d => d.startsWith(S.dashMonth) && d < date
+              && (S.attendanceByDate[d] || []).some(a => a.staffId === st['ID']));
+          sTMonthlyForDay = existingDaysForStaff.length === 0 ? sTMonthlyAmt : 0;
+        }
+        const sTransportForDay = sTDaily + sTMonthlyForDay;
+        const lc = isHourly
+          ? hours * wage + sTransportForDay
+          : (wage / settingOpDays + sTransportForDay);
         const existAttend = (S.attendanceByDate[date] || []).find(a => a.staffId === st['ID']);
         records.push({
           id: existAttend?.id || '',
@@ -1287,7 +1335,13 @@ function renderStaffList() {
     return `<div class="list-item" onclick="editStaff('${st['ID']}')">
       <div class="list-item-main">
         <div class="list-item-name">${st['氏名']}</div>
-        <div class="list-item-sub">${st['雇用形態']}</div>
+        <div class="list-item-sub">${st['雇用形態']}${
+          st['交通費タイプ'] === 'monthly' && parseFloat(st['定期代']) > 0
+            ? ' · 定期代 ¥' + parseFloat(st['定期代']).toLocaleString() + '/月'
+            : parseFloat(st['交通費']) > 0
+              ? ' · 交通費 ¥' + parseFloat(st['交通費']).toLocaleString() + '/日'
+              : ''
+        }</div>
       </div>
       <div class="list-item-right">
         <div class="list-item-value">${fmtY(wage)}</div>
@@ -1682,6 +1736,10 @@ function openStaffModal(id) {
   document.getElementById('s-type').value = st ? st['雇用形態'] : 'アルバイト';
   document.getElementById('s-hourly').value = st ? st['時給'] : '';
   document.getElementById('s-monthly').value = st ? st['月給'] : '';
+  document.getElementById('s-transport-type').value = st ? (st['交通費タイプ'] || 'daily') : 'daily';
+  document.getElementById('s-transport').value = st ? (st['交通費'] || '') : '';
+  document.getElementById('s-transport-monthly-amt').value = st ? (st['定期代'] || '') : '';
+  syncTransportType();
   document.getElementById('s-note').value = st ? st['備考'] : '';
   document.getElementById('s-del-btn').style.display = isEdit ? '' : 'none';
   syncStaffType();
@@ -1694,6 +1752,11 @@ function syncStaffType() {
   document.getElementById('s-hourly-field').style.display = isMonthly ? 'none' : '';
   document.getElementById('s-monthly-field').style.display = isMonthly ? '' : 'none';
 }
+function syncTransportType() {
+  const t = document.getElementById('s-transport-type').value;
+  document.getElementById('s-transport-daily-field').style.display   = t === 'daily'   ? '' : 'none';
+  document.getElementById('s-transport-monthly-field').style.display = t === 'monthly' ? '' : 'none';
+}
 async function saveStaff() {
   const name = document.getElementById('s-name').value.trim();
   if (!name) { showToast('❌ 氏名を入力してください'); return; }
@@ -1705,7 +1768,17 @@ async function saveStaff() {
   const id = S.currentStaffId || genId();
   setSyncing('syncing'); document.getElementById('s-save-btn').disabled = true;
   try {
-    const res = await apiPost({ action: 'saveStaff', data: { 'ID': id, '氏名': name, '雇用形態': type, '時給': isMonthly ? 0 : hourly, '月給': isMonthly ? monthly : 0, '備考': note }});
+    const transportType = document.getElementById('s-transport-type').value;
+    const transport = parseFloat(document.getElementById('s-transport').value) || 0;
+    const transportMonthly = parseFloat(document.getElementById('s-transport-monthly-amt').value) || 0;
+    const res = await apiPost({ action: 'saveStaff', data: {
+      'ID': id, '氏名': name, '雇用形態': type,
+      '時給': isMonthly ? 0 : hourly, '月給': isMonthly ? monthly : 0,
+      '交通費タイプ': transportType,
+      '交通費': transportType === 'daily' ? transport : 0,
+      '定期代': transportType === 'monthly' ? transportMonthly : 0,
+      '備考': note
+    }});
     if (res.error) throw new Error(res.error);
     setSyncing('ok'); closeModal('staff-modal'); showToast('✅ 保存しました');
     await loadAll();
