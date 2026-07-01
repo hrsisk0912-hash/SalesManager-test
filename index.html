@@ -373,9 +373,45 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
   <!-- ===== 月次 ===== -->
   <div id="tab-monthly" class="tab-panel">
-    <div class="page-title">📊 月次サマリー</div>
-    <div class="page-sub">月ごとのPL推移</div>
-    <div id="monthly-list"></div>
+    <div class="month-nav">
+      <button class="month-btn" onclick="shiftMonthlyMonth(-1)">‹</button>
+      <div class="month-label" id="monthly-month-label">— 年 — 月</div>
+      <button class="month-btn" onclick="shiftMonthlyMonth(1)">›</button>
+    </div>
+
+    <!-- 月次設定 -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📅 月次設定</div></div>
+      <div class="card-body">
+        <div class="field" style="margin-bottom:0">
+          <label class="field-label">営業日数<span class="req">*</span></label>
+          <input class="input input-num" id="monthly-op-days" type="number" inputmode="numeric" placeholder="例：26" min="1" max="31">
+          <div class="field-hint">固定費の日割り計算に使用します</div>
+        </div>
+      </div>
+      <div style="padding:0 16px 14px">
+        <button class="btn btn-primary" id="monthly-save-btn" onclick="saveMonthlySettings()">この月の設定を保存</button>
+      </div>
+    </div>
+
+    <!-- 月次サマリー -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 月次PL</div>
+        <button class="btn btn-ghost btn-sm" onclick="aggregateManualMonthly()">🔄 再集計</button>
+      </div>
+      <div class="card-body" id="monthly-pl-body">
+        <div class="empty-state" style="padding:24px">
+          <div class="es">データがありません</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 過去月一覧 -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">過去の月次実績</div></div>
+      <div id="monthly-history-list"></div>
+    </div>
   </div>
 
   <!-- ===== 設定 ===== -->
@@ -401,8 +437,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="card">
       <div class="card-header"><div class="card-title">月次集計</div></div>
       <div class="card-body">
-        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">当月の日次データから月次サマリーを手動で再集計します。</p>
-        <button class="btn btn-secondary" onclick="aggregateManual()">🔄 当月を再集計する</button>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">月次タブの「再集計」ボタンから各月を集計できます。</p>
       </div>
     </div>
     <button class="btn btn-primary" onclick="saveSettings()">設定を保存</button>
@@ -502,6 +537,8 @@ const S = {
   currentStaffId: null,
   currentExpId: null,
   dashMonth: '',        // YYYY-MM
+  monthlyMonth: '',     // YYYY-MM（月次タブ）
+  opDaysMap: {},        // { 'YYYY-MM': 26, ... } 営業日数マスタ
   laborDetailMode: false,
 };
 
@@ -535,6 +572,16 @@ async function loadAll() {
     S.expenses = base.expenses || [];
     S.monthlySummary = base.monthlySummary || [];
     S.config   = base.config || {};
+
+    // 営業日数マップをconfigから復元（キー：営業日数_YYYY-MM）
+    S.opDaysMap = {};
+    Object.entries(S.config).forEach(([k, v]) => {
+      if (k.startsWith('営業日数_')) {
+        const month = k.replace('営業日数_', '');
+        S.opDaysMap[month] = parseInt(v) || 0;
+      }
+    });
+
     applyConfig();
 
     // 今月の日次データを取得
@@ -598,7 +645,15 @@ function renderAll() {
   renderStaffList();
   renderExpList();
   renderMonthlyList();
+  renderMonthlyTab();
   buildStaffTimeRows(); // 日次入力のスタッフ行を再構築
+}
+
+// 営業日数を取得（設定値 → 実績入力日数 の順でフォールバック）
+function getOpDays(month) {
+  if (S.opDaysMap[month] && S.opDaysMap[month] > 0) return S.opDaysMap[month];
+  // 未設定の場合は実績入力日数で代替
+  return Math.max(Object.keys(S.dailyByDate).filter(d => d.startsWith(month)).length, 1);
 }
 
 // ============================================================
@@ -660,7 +715,9 @@ function renderDash() {
   // BEP
   const varRate = sales > 0 ? (cost + varexp) / sales : 0;
   const bep = varRate < 1 && fixedExp > 0 ? fixedExp / (1 - varRate) : 0;
+  const opDaysSet = S.opDaysMap[S.dashMonth] > 0;
   document.getElementById('bep-fixed').textContent = fmtY(fixedExp);
+  document.getElementById('bep-fixed').title = opDaysSet ? '' : '⚠ 営業日数未設定（月次タブで設定してください）';
   document.getElementById('bep-var-rate').textContent = varRate > 0 ? fmtPct(varRate) : '—';
   document.getElementById('bep-sales').textContent = bep > 0 ? fmtY(bep) : '—';
   if (bep > 0 && sales > 0) {
@@ -822,7 +879,8 @@ function recalcDaily() {
 
   // 固定費日割り
   const fixedExp = S.expenses.reduce((s, e) => s + (parseFloat(e['月額（円）']) || 0), 0);
-  const opDays = Math.max(Object.keys(S.dailyByDate).filter(d => d.startsWith(S.dashMonth)).length, 1);
+  const opDays = getOpDays(S.dashMonth);
+  const opDaysSet = S.opDaysMap[S.dashMonth] > 0;
   const fixedDaily = fixedExp / opDays;
 
   const gross  = sales - cost;
@@ -836,7 +894,9 @@ function recalcDaily() {
   setPlPreview('dp-labor', labor, sales > 0 ? labor / sales : null);
   setPlPreview('dp-varexp', varexp, null);
   document.getElementById('dp-fixed').textContent = fixedDaily > 0 ? fmtY(Math.round(fixedDaily)) : '—';
-  document.getElementById('dp-fixed-hint').textContent = fixedExp > 0 ? `月${fmtY(fixedExp)} ÷ ${opDays}日` : '';
+  document.getElementById('dp-fixed-hint').textContent = opDaysSet
+    ? `月${fmtY(fixedExp)} ÷ ${opDays}日`
+    : fixedExp > 0 ? `⚠ 営業日数未設定（月次タブで設定を）` : '';
   setPlPreview('dp-profit', Math.round(profit), sales > 0 ? profit / sales : null, profit >= 0 ? 'v-safe' : 'v-danger');
   const flEl = document.getElementById('dp-fl');
   flEl.textContent = fl !== null ? fmtPct(fl) : '—';
@@ -982,30 +1042,139 @@ function renderExpList() {
 }
 
 // ============================================================
-// MONTHLY LIST
+// 月次タブ
+// ============================================================
+function shiftMonthlyMonth(delta) {
+  const [y, m] = S.monthlyMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  S.monthlyMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  // 対象月のデータが未ロードなら取得
+  const hasData = Object.keys(S.dailyByDate).some(d => d.startsWith(S.monthlyMonth));
+  if (!hasData) {
+    showLoading(true);
+    loadMonthDaily(S.monthlyMonth).then(() => { renderMonthlyTab(); showLoading(false); });
+  } else {
+    renderMonthlyTab();
+  }
+}
+
+function renderMonthlyTab() {
+  document.getElementById('monthly-month-label').textContent =
+    S.monthlyMonth.replace('-', '年') + '月';
+
+  // 営業日数をセット
+  const opDays = S.opDaysMap[S.monthlyMonth] || '';
+  document.getElementById('monthly-op-days').value = opDays;
+
+  // 月次サマリーを表示
+  const summary = S.monthlySummary.find(m => m['年月'] === S.monthlyMonth);
+  const plBody = document.getElementById('monthly-pl-body');
+
+  if (summary) {
+    const sales   = parseFloat(summary['売上合計']) || 0;
+    const cost    = parseFloat(summary['仕入原価合計']) || 0;
+    const gross   = parseFloat(summary['粗利']) || 0;
+    const labor   = parseFloat(summary['人件費合計']) || 0;
+    const varexp  = parseFloat(summary['変動販管費合計']) || 0;
+    const fixed   = parseFloat(summary['固定費合計']) || 0;
+    const profit  = parseFloat(summary['営業利益']) || 0;
+    const fl      = parseFloat(summary['FL比率']) || null;
+    const opD     = parseInt(summary['営業日数']) || 0;
+    const tgtFL   = parseFloat(S.config['目標FL比率']) || 0.60;
+
+    plBody.innerHTML = `
+      <div class="pl-row"><span class="pl-label">売上高</span><div><div class="pl-value v-blue">${fmtY(sales)}</div><div class="pl-rate">${opD}日営業</div></div></div>
+      <div class="pl-row"><span class="pl-label pl-indent">仕入原価</span><div><div class="pl-value">${fmtY(cost)}</div><div class="pl-rate">${sales>0?fmtPct(cost/sales):'—'}</div></div></div>
+      <div class="pl-row pl-subtotal"><span class="pl-label">粗利益</span><div><div class="pl-value ${gross>=0?'v-safe':'v-danger'}">${fmtY(gross)}</div><div class="pl-rate">${sales>0?fmtPct(gross/sales):'—'}</div></div></div>
+      <div class="pl-row"><span class="pl-label pl-indent">人件費</span><div><div class="pl-value">${fmtY(labor)}</div><div class="pl-rate">${sales>0?fmtPct(labor/sales):'—'} (L率)</div></div></div>
+      <div class="pl-row"><span class="pl-label pl-indent">変動販管費</span><div><div class="pl-value">${fmtY(varexp)}</div><div class="pl-rate">${sales>0?fmtPct(varexp/sales):'—'}</div></div></div>
+      <div class="pl-row"><span class="pl-label pl-indent">固定費</span><div><div class="pl-value">${fmtY(fixed)}</div></div></div>
+      <div class="pl-row pl-total"><span class="pl-label">営業利益</span><div><div class="pl-value ${profit>=0?'v-safe':'v-danger'}">${fmtY(profit)}</div><div class="pl-rate">${sales>0?fmtPct(profit/sales):'—'}</div></div></div>
+      <div style="margin-top:12px;padding:10px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:14px;color:var(--text2);font-weight:600">FL比率</span>
+        <span style="font-size:20px;font-weight:800;${fl!==null?(fl<=tgtFL?'color:var(--green)':'color:var(--red)'):''}">${fl!==null?fmtPct(fl):'—'}</span>
+      </div>`;
+  } else {
+    plBody.innerHTML = `<div class="empty-state" style="padding:24px"><div class="ei">📊</div><div class="et">まだデータがありません</div><div class="es">日次入力後「再集計」を押してください</div></div>`;
+  }
+
+  // 過去月一覧
+  renderMonthlyList();
+}
+
+async function saveMonthlySettings() {
+  const opDays = parseInt(document.getElementById('monthly-op-days').value) || 0;
+  if (!opDays || opDays < 1 || opDays > 31) {
+    showToast('❌ 営業日数を正しく入力してください（1〜31）');
+    return;
+  }
+  setSyncing('syncing');
+  document.getElementById('monthly-save-btn').disabled = true;
+  try {
+    const key = '営業日数_' + S.monthlyMonth;
+    await apiPost({ action: 'saveConfig', data: { [key]: opDays }});
+    S.opDaysMap[S.monthlyMonth] = opDays;
+    S.config[key] = opDays;
+    setSyncing('ok');
+    showToast('✅ ' + S.monthlyMonth.replace('-', '年') + '月の営業日数を保存しました（' + opDays + '日）');
+    recalcDaily(); // 日次PLのヒントを更新
+    renderDash();
+  } catch(e) { setSyncing('error'); showToast('⚠ 保存に失敗しました'); }
+  finally { document.getElementById('monthly-save-btn').disabled = false; }
+}
+
+async function aggregateManualMonthly() {
+  setSyncing('syncing');
+  try {
+    const opDays = S.opDaysMap[S.monthlyMonth] || 0;
+    const res = await apiPost({ action: 'aggregateMonth', month: S.monthlyMonth, opDays });
+    if (res.error) throw new Error(res.error);
+    setSyncing('ok');
+    showToast('✅ ' + S.monthlyMonth.replace('-', '年') + '月を集計しました');
+    await loadAll();
+    renderMonthlyTab();
+  } catch(e) { setSyncing('error'); showToast('⚠ 集計に失敗しました'); }
+}
+
+// ============================================================
+// 月次一覧（過去月）
 // ============================================================
 function renderMonthlyList() {
-  const el = document.getElementById('monthly-list');
-  const sorted = [...S.monthlySummary].sort((a, b) => b['年月'].localeCompare(a['年月']));
-  if (!sorted.length) { el.innerHTML = emptyHTML('📊', '月次データがありません', '設定タブから手動集計できます'); return; }
+  const el = document.getElementById('monthly-history-list');
+  const sorted = [...S.monthlySummary]
+    .sort((a, b) => b['年月'].localeCompare(a['年月']));
+  if (!sorted.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:24px"><div class="es">過去の実績データがありません</div></div>`;
+    return;
+  }
+  const tgtFL = parseFloat(S.config['目標FL比率']) || 0.60;
   el.innerHTML = sorted.map(m => {
-    const sales = parseFloat(m['売上合計']) || 0;
+    const sales  = parseFloat(m['売上合計']) || 0;
     const profit = parseFloat(m['営業利益']) || 0;
-    const fl = parseFloat(m['FL比率']) || null;
-    const tgtFL = parseFloat(S.config['目標FL比率']) || 0.60;
-    return `<div class="card" style="margin-bottom:10px">
-      <div class="card-header">
-        <div class="card-title">${m['年月'].replace('-', '年')}月</div>
-        <span class="chip ${fl !== null ? (fl <= tgtFL ? 'chip-green' : 'chip-red') : ''}">FL ${fl !== null ? fmtPct(fl) : '—'}</span>
+    const fl     = parseFloat(m['FL比率']) || null;
+    const isCurrent = m['年月'] === S.monthlyMonth;
+    return `<div class="list-item" onclick="jumpToMonth('${m['年月']}')">
+      <div class="list-item-main">
+        <div class="list-item-name">${m['年月'].replace('-', '年')}月${isCurrent ? ' 　<span style="font-size:11px;color:var(--primary)">表示中</span>' : ''}</div>
+        <div class="list-item-sub">売上 ${fmtY(sales)}　営業利益 ${fmtY(profit)}</div>
       </div>
-      <div class="card-body">
-        <div class="pl-row"><span class="pl-label">売上高</span><span class="pl-value v-blue">${fmtY(sales)}</span></div>
-        <div class="pl-row"><span class="pl-label">粗利益</span><span class="pl-value">${fmtY(parseFloat(m['粗利']) || 0)}<span style="font-size:12px;color:var(--text3);margin-left:6px">${m['原価率'] ? fmtPct(parseFloat(m['原価率'])) + '原価' : ''}</span></span></div>
-        <div class="pl-row"><span class="pl-label">人件費</span><span class="pl-value">${fmtY(parseFloat(m['人件費合計']) || 0)}</span></div>
-        <div class="pl-row pl-total"><span class="pl-label">営業利益</span><span class="pl-value ${profit >= 0 ? 'v-safe' : 'v-danger'}">${fmtY(profit)}</span></div>
+      <div class="list-item-right">
+        <div class="list-item-value" style="${fl!==null?(fl<=tgtFL?'color:var(--green)':'color:var(--red)'):''}">FL ${fl !== null ? fmtPct(fl) : '—'}</div>
+        <div class="list-item-label">${m['営業日数'] ? m['営業日数'] + '日' : '—'}</div>
       </div>
     </div>`;
   }).join('');
+}
+
+function jumpToMonth(month) {
+  S.monthlyMonth = month;
+  const hasData = Object.keys(S.dailyByDate).some(d => d.startsWith(month));
+  if (!hasData) {
+    showLoading(true);
+    loadMonthDaily(month).then(() => { renderMonthlyTab(); showLoading(false); });
+  } else {
+    renderMonthlyTab();
+  }
 }
 
 // ============================================================
@@ -1164,6 +1333,7 @@ document.addEventListener('touchstart', e => {
 // ============================================================
 const _now = new Date();
 S.dashMonth = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0');
+S.monthlyMonth = S.dashMonth; // 月次タブも今月を初期表示
 // 日次入力を今日にデフォルト
 document.getElementById('daily-date').value =
   _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0') + '-' + String(_now.getDate()).padStart(2, '0');
