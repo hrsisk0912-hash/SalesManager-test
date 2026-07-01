@@ -600,7 +600,14 @@ async function loadMonthDaily(month) {
 
   S.dailyByDate = {};
   daily.forEach(r => {
-    const d = String(r['日付']);
+    // 日付をYYYY-MM-DD形式に正規化（Dateオブジェクト対応）
+    const raw = r['日付'];
+    const d = raw instanceof Date
+      ? raw.toISOString().slice(0,10)
+      : String(raw).slice(0,10);
+    if (!d || d === 'undefined') return;
+    // 同じ日付で複数行ある場合はIDありを優先
+    if (S.dailyByDate[d] && !r['ID']) return;
     S.dailyByDate[d] = {
       id: String(r['ID'] || ''),
       sales: parseFloat(r['売上（税抜）']) || 0,
@@ -613,7 +620,11 @@ async function loadMonthDaily(month) {
 
   S.attendanceByDate = {};
   attend.forEach(r => {
-    const d = String(r['日付']);
+    const rawD = r['日付'];
+    const d = rawD instanceof Date
+      ? rawD.toISOString().slice(0,10)
+      : String(rawD).slice(0,10);
+    if (!d || d === 'undefined') return;
     if (!S.attendanceByDate[d]) S.attendanceByDate[d] = [];
     S.attendanceByDate[d].push({
       id: String(r['ID'] || ''),
@@ -864,9 +875,9 @@ function recalcDaily() {
       if (isHourly) {
         lc = hours * wage;
       } else {
-        // 月給の場合：月の営業日数で割って日割り
-        const opDays = Object.keys(S.dailyByDate).filter(d => d.startsWith(S.dashMonth)).length || 25;
-        lc = hours > 0 ? (wage / (opDays * 8)) * hours : 0; // 8h/日で日割り
+        // 月給の場合：月給÷設定営業日数で日割り（時間に関係なく1日分を計上）
+        const settingOpDays = getOpDays(S.dashMonth);
+        lc = wage / settingOpDays;
       }
       labor += lc;
       const ce = document.getElementById('scost-' + st['ID']);
@@ -947,8 +958,9 @@ async function saveDaily() {
         if (hours <= 0) return;
         const isHourly = inp.dataset.isHourly === '1';
         const wage = parseFloat(inp.dataset.wage) || 0;
-        const opDays = Math.max(Object.keys(S.dailyByDate).filter(d => d.startsWith(S.dashMonth)).length, 1);
-        const lc = isHourly ? hours * wage : (wage / (opDays * 8)) * hours;
+        // 月給社員：月給÷設定営業日数で日割り（時間入力は無視して1日分を計上）
+        const settingOpDays = getOpDays(S.dashMonth);
+        const lc = isHourly ? hours * wage : (wage / settingOpDays);
         const existAttend = (S.attendanceByDate[date] || []).find(a => a.staffId === st['ID']);
         records.push({
           id: existAttend?.id || '',
